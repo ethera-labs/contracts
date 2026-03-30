@@ -11,7 +11,6 @@ contract ComposableERC20 is ERC20, IERC7802, IComposableERC20 {
     uint8 public immutable tokenDecimals;
 
     address public bridge;
-    bool private _initialized;
 
     constructor(
         address _remoteAsset,

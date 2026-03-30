@@ -5,22 +5,40 @@ import { ComposableERC20 } from "@ssv/src/bridge/ComposableErc20.sol";
 import { ICETFactory } from "@ssv/src/bridge/interfaces/ICetFactory.sol";
 
 contract CetFactory is ICETFactory {
-    function computeSalt(address l1Asset, uint256 remoteChainID) public pure returns (bytes32){
-        return keccak256(abi.encode(l1Asset, remoteChainID));
+    address public bridge;
+    address public immutable deployer;
+
+    modifier onlyBridge() {
+        if (msg.sender != bridge) revert OnlyBridge();
+        _;
+    }
+
+    constructor() {
+        deployer = msg.sender;
+    }
+
+    function setBridge(address _bridge) external {
+        if (msg.sender != deployer) revert OnlyDeployer();
+        if (bridge != address(0)) revert BridgeAlreadySet();
+        if (_bridge == address(0)) revert ZeroAddress();
+        bridge = _bridge;
+    }
+
+    function computeSalt(address remoteAsset, uint256 remoteChainID) public pure returns (bytes32){
+        return keccak256(abi.encode(remoteAsset, remoteChainID));
     }
 
     function predictAddress(
-        address l1Asset,
+        address remoteAsset,
         uint256 remoteChainID,
         uint8 decimals,
         string memory name,
-        string memory symbol,
-        address bridge
+        string memory symbol
     ) public view returns (address) {
-        bytes32 salt = computeSalt(l1Asset, remoteChainID);
+        bytes32 salt = computeSalt(remoteAsset, remoteChainID);
 
         bytes memory ctorArgs = abi.encode(
-            l1Asset,
+            remoteAsset,
             remoteChainID,
             name,
             symbol,
@@ -49,22 +67,20 @@ contract CetFactory is ICETFactory {
     }
 
     function deployIfAbsent(
-        address l1Asset,
+        address remoteAsset,
         uint256 remoteChainID,
         uint8 decimals,
         string calldata name,
-        string calldata symbol,
-        address bridge
-    ) external returns (address deployed) {
-        bytes32 salt = computeSalt(l1Asset, remoteChainID);
+        string calldata symbol
+    ) external onlyBridge returns (address deployed) {
+        bytes32 salt = computeSalt(remoteAsset, remoteChainID);
 
         address predicted = predictAddress(
-            l1Asset,
+            remoteAsset,
             remoteChainID,
             decimals,
             name,
-            symbol,
-            bridge
+            symbol
         );
 
         if (predicted.code.length > 0) {
@@ -73,7 +89,7 @@ contract CetFactory is ICETFactory {
 
         deployed = address(
             new ComposableERC20{salt: salt}(
-                l1Asset,
+                remoteAsset,
                 remoteChainID,
                 name,
                 symbol,

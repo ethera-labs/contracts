@@ -57,14 +57,14 @@ contract MailboxTest is Setup {
             address hSender,
             address hReceiver,
             uint256 hSessionId,
-            bytes memory hLabel
+            string memory hLabel
         ) = mailbox.messageHeaderListOutbox(0);
         assertEq(hChainSrc, thisChain, "Source chain should match");
         assertEq(hChainDest, otherChain, "Dest chain should match");
         assertEq(hSender, messageSender, "Sender should match");
         assertEq(hReceiver, messageReceiver, "Receiver should match");
         assertEq(hSessionId, 1, "Session ID should match");
-        assertEq(keccak256(hLabel), keccak256("SWAP"), "Label should match");
+        assertEq(keccak256(bytes(hLabel)), keccak256("SWAP"), "Label should match");
 
         bytes32 expectedRoot = keccak256(abi.encode(0, key, "hello"));
         assertEq(
@@ -97,14 +97,14 @@ contract MailboxTest is Setup {
             address hSender,
             address hReceiver,
             uint256 hSessionId,
-            bytes memory hLabel
+            string memory hLabel
         ) = mailbox.messageHeaderListInbox(0);
         assertEq(hChainSrc, otherChain, "Source chain should match");
         assertEq(hChainDest, thisChain, "Dest chain should match");
         assertEq(hSender, messageSender, "Sender should match");
         assertEq(hReceiver, messageReceiver, "Receiver should match");
         assertEq(hSessionId, 1, "Session ID should match");
-        assertEq(keccak256(hLabel), keccak256("SWAP"), "Label should match");
+        assertEq(keccak256(bytes(hLabel)), keccak256("SWAP"), "Label should match");
 
         bytes32 expectedRoot = keccak256(abi.encode(0, key, "salut"));
         assertEq(mailbox.inboxRootPerChain(otherChain), expectedRoot, "Inbox root should match");

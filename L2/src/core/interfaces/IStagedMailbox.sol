@@ -27,7 +27,7 @@ interface IStagedMailbox {
         address sender;
         address receiver;
         uint256 sessionId;
-        bytes label;
+        string label;
     }
 
     struct StagedInboxMsg {
@@ -35,7 +35,7 @@ interface IStagedMailbox {
         address sender;
         address receiver;
         uint256 sessionId;
-        bytes label;
+        string label;
         bytes data;
     }
 
@@ -44,7 +44,7 @@ interface IStagedMailbox {
         address sender;
         address receiver;
         uint256 sessionId;
-        bytes label;
+        string label;
         bytes data;
     }
 
@@ -62,7 +62,7 @@ interface IStagedMailbox {
         address sender,
         address receiver,
         uint256 sessionId,
-        bytes calldata label
+        string calldata label
     ) external pure returns (bytes32);
 
     function putInbox(
@@ -70,7 +70,7 @@ interface IStagedMailbox {
         address sender,
         address receiver,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) external;
 
@@ -79,7 +79,7 @@ interface IStagedMailbox {
         address sender,
         address receiver,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) external;
 
@@ -87,14 +87,14 @@ interface IStagedMailbox {
         uint256 srcChainID,
         address sender,
         uint256 sessionId,
-        bytes calldata label
+        string calldata label
     ) external returns (bytes memory);
 
     function write(
         uint256 destChainID,
         address receiver,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) external;
 

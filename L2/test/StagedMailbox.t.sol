@@ -436,7 +436,7 @@ contract StagedMailboxTest is Setup {
                 sender: messageSender,
                 receiver: messageReceiver,
                 sessionId: i + 1,
-                label: bytes(abi.encodePacked("MSG", i)),
+                label: string(abi.encodePacked("MSG", i)),
                 data: bytes(abi.encodePacked("data", i))
             });
 
@@ -445,7 +445,7 @@ contract StagedMailboxTest is Setup {
                 sender: messageSender,
                 receiver: messageReceiver,
                 sessionId: i + 100,
-                label: bytes(abi.encodePacked("MSG", i)),
+                label: string(abi.encodePacked("MSG", i)),
                 data: bytes(abi.encodePacked("data", i))
             });
         }
@@ -458,7 +458,7 @@ contract StagedMailboxTest is Setup {
         // Verify all messages were stored
         for (uint256 i = 0; i < batchSize; i++) {
             bytes32 inboxKey = stagedMailbox.getKey(
-                otherChain, thisChain, messageSender, messageReceiver, i + 1, bytes(abi.encodePacked("MSG", i))
+                otherChain, thisChain, messageSender, messageReceiver, i + 1, string(abi.encodePacked("MSG", i))
             );
             assertTrue(stagedMailbox.isCreatedKey(inboxKey), "Inbox message should be created");
         }
@@ -471,7 +471,7 @@ contract StagedMailboxTest is Setup {
         address sender,
         address receiver,
         uint256 sessionId,
-        bytes calldata label
+        string calldata label
     ) public view {
         vm.assume(sender != address(0) && receiver != address(0));
         bytes32 key = stagedMailbox.getKey(srcChain, destChain, sender, receiver, sessionId, label);
@@ -483,7 +483,7 @@ contract StagedMailboxTest is Setup {
         uint256 srcChain,
         address sender,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) public {
         vm.assume(sender != address(0));
@@ -502,7 +502,7 @@ contract StagedMailboxTest is Setup {
     function testFuzz_WriteDataValidation(
         uint256 destChain,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata correctData,
         bytes calldata wrongData
     ) public {
@@ -524,7 +524,7 @@ contract StagedMailboxTest is Setup {
         uint256 srcChain,
         address sender,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) public {
         vm.assume(sender != address(0));
@@ -557,7 +557,7 @@ contract StagedMailboxTest is Setup {
 //        uint256 destChain,
 //        address receiver,
 //        uint256 sessionId,
-//        bytes calldata label,
+//        string calldata label,
 //        bytes calldata data
 //    ) public {
 //        vm.assume(receiver != address(0));
@@ -678,7 +678,7 @@ contract StagedMailboxTest is Setup {
         uint256 srcChain,
         address sender,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) public {
         vm.assume(sender != address(0));
@@ -708,7 +708,7 @@ contract StagedMailboxTest is Setup {
         uint256 destChain,
         address receiver,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) public {
         vm.assume(receiver != address(0));

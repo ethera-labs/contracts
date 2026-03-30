@@ -9,7 +9,6 @@ contract CetFactoryTest is Setup {
     CetFactory internal factory;
 
     address internal l1Asset = address(0xBEEF);
-    address internal bridgeAddress = address(0xCAFE);
     string internal name = "Token";
     string internal symbol = "TOK";
     uint8 internal decimals = 18;
@@ -18,6 +17,7 @@ contract CetFactoryTest is Setup {
     function setUp() public override {
         super.setUp();
         factory = new CetFactory();
+        factory.setBridge(address(this));
     }
 
     function testComputeSalt() public {
@@ -34,7 +34,7 @@ contract CetFactoryTest is Setup {
             name,
             symbol,
             decimals,
-            bridgeAddress
+            address(this) // bridge is address(this) via setBridge
         );
         bytes memory bytecode = abi.encodePacked(
             type(ComposableERC20).creationCode,
@@ -62,8 +62,7 @@ contract CetFactoryTest is Setup {
             remoteChainId,
             decimals,
             name,
-            symbol,
-            bridgeAddress
+            symbol
         );
 
         assertEq(predicted, expected, "predict mismatch");
@@ -75,8 +74,7 @@ contract CetFactoryTest is Setup {
             remoteChainId,
             decimals,
             name,
-            symbol,
-            bridgeAddress
+            symbol
         );
 
         address deployed = factory.deployIfAbsent(
@@ -84,8 +82,7 @@ contract CetFactoryTest is Setup {
             remoteChainId,
             decimals,
             name,
-            symbol,
-            bridgeAddress
+            symbol
         );
 
         assertEq(deployed, predicted, "wrong deployed address");
@@ -98,8 +95,7 @@ contract CetFactoryTest is Setup {
             remoteChainId,
             decimals,
             name,
-            symbol,
-            bridgeAddress
+            symbol
         );
 
         address second = factory.deployIfAbsent(
@@ -107,8 +103,7 @@ contract CetFactoryTest is Setup {
             remoteChainId,
             decimals,
             name,
-            symbol,
-            bridgeAddress
+            symbol
         );
 
         assertEq(first, second, "should reuse existing deployment");

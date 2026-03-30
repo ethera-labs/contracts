@@ -4,14 +4,14 @@ pragma solidity 0.8.30;
 import { Script, console } from "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 
-import { Mailbox } from "@ssv/src/core/Mailbox.sol";
+import { UniversalBridgeMailbox } from "@ssv/src/bridge/UniversalBridgeMailbox.sol";
 import { CetFactory } from "@ssv/src/bridge/CetFactory.sol";
 import { UniversalBridge } from "@ssv/src/bridge/UniversalBridge.sol";
 
 contract DeployUniversalBridge is Script {
     using stdJson for string;
 
-    function run(address coordinator, string memory networkName)
+    function run(address coordinator, address ethLiquidity, string memory networkName)
     public
     returns (string memory finalJson)
     {
@@ -29,16 +29,9 @@ contract DeployUniversalBridge is Script {
 
         address mailboxAddr = _deployCreate2(
             salt,
-            abi.encodePacked(type(Mailbox).creationCode, abi.encode(coordinator))
+            abi.encodePacked(type(UniversalBridgeMailbox).creationCode, abi.encode(coordinator))
         );
         console.log("Mailbox deployed at:", mailboxAddr);
-
-        uint256 nonceBefore = vm.getNonce(msg.sender);
-        address predictedBridgeAddr = vm.computeCreateAddress(
-            msg.sender,
-            nonceBefore + 1
-        );
-        console.log("Predicted UniversalBridge address:", predictedBridgeAddr);
 
         address cetFactoryAddr = _deployCreate2(
             salt,
@@ -46,15 +39,22 @@ contract DeployUniversalBridge is Script {
         );
         console.log("CetFactory deployed at:", cetFactoryAddr);
 
-        address bridgeAddr = _deployCreate2(
-            salt,
-            abi.encodePacked(
-                type(UniversalBridge).creationCode,
-                abi.encode(mailboxAddr, cetFactoryAddr)
-            )
+        bytes memory bridgeCreationCode = abi.encodePacked(
+            type(UniversalBridge).creationCode,
+            abi.encode(mailboxAddr, cetFactoryAddr, ethLiquidity)
         );
+        address predictedBridgeAddr = _predictCreate2(salt, bridgeCreationCode);
+        console.log("Predicted UniversalBridge address:", predictedBridgeAddr);
+
+        address bridgeAddr = _deployCreate2(salt, bridgeCreationCode);
         require(bridgeAddr == predictedBridgeAddr, "Bridge address mismatch");
         console.log("UniversalBridge deployed at:", bridgeAddr);
+
+        UniversalBridgeMailbox(mailboxAddr).setBridge(bridgeAddr);
+        console.log("Mailbox bridge set to:", bridgeAddr);
+
+        CetFactory(cetFactoryAddr).setBridge(bridgeAddr);
+        console.log("CetFactory bridge set to:", bridgeAddr);
 
         vm.stopBroadcast();
 
@@ -81,6 +81,19 @@ contract DeployUniversalBridge is Script {
                 revert(0, 0)
             }
         }
+    }
+
+    function _predictCreate2(bytes32 salt, bytes memory code) internal view returns (address) {
+        bytes32 codeHash = keccak256(code);
+        return address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(bytes1(0xff), address(this), salt, codeHash)
+                    )
+                )
+            )
+        );
     }
 
     function _saveToJson(

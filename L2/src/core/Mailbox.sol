@@ -2,7 +2,6 @@
 pragma solidity 0.8.30;
 
 import { IMailbox } from "@ssv/src/core/interfaces/IMailbox.sol";
-import { console } from "forge-std/console.sol";
 
 /**
  * @title Mailbox
@@ -41,6 +40,11 @@ contract Mailbox is IMailbox {
     /// @notice Mapping to track if a key has been created (used in inbox or outbox).
     mapping(bytes32 key => bool used) public createdKeys;
 
+    /// @notice Mapping to track if a key has been consumed by readMessage.
+    mapping(bytes32 key => bool consumed) public consumedKeys;
+
+    error MessageAlreadyConsumed();
+
     /// @notice List of headers for messages in the inbox.
     MessageHeader[] public messageHeaderListInbox;
 
@@ -76,7 +80,7 @@ contract Mailbox is IMailbox {
         address sender,
         address receiver,
         uint256 sessionId,
-        bytes calldata label
+        string calldata label
     ) public pure returns (bytes32 key) {
         key = keccak256(
             abi.encodePacked(
@@ -101,7 +105,7 @@ contract Mailbox is IMailbox {
         uint256 chainMessageSender,
         address sender,
         uint256 sessionId,
-        bytes calldata label
+        string calldata label
     ) external view returns (bytes memory message) {
         bytes32 key = getKey(
             chainMessageSender,
@@ -130,7 +134,7 @@ contract Mailbox is IMailbox {
         uint256 chainMessageRecipient,
         address receiver,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) external {
         bytes32 key = getKey(
@@ -177,7 +181,7 @@ contract Mailbox is IMailbox {
         address sender,
         address receiver,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) external onlyCoordinator {
         bytes32 key = getKey(
@@ -202,6 +206,72 @@ contract Mailbox is IMailbox {
         );
 
         emit NewInboxKey(messageHeaderListInbox.length - 1, key);
+    }
+
+    /// @notice Read a message from the inbox using a structured header.
+    /// @dev The key includes both sender and receiver from the header, ensuring
+    ///      only messages addressed to the specified receiver can be read.
+    /// @param header The message header identifying the message.
+    /// @return message The message data.
+    function readMessage(
+        MessageHeader calldata header
+    ) external returns (bytes memory message) {
+        bytes32 key = getKey(
+            header.chainSrc,
+            header.chainDest,
+            header.sender,
+            header.receiver,
+            header.sessionId,
+            header.label
+        );
+
+        if (consumedKeys[key]) revert MessageAlreadyConsumed();
+
+        if (inbox[key].length == 0 && !createdKeys[key]) {
+            revert MessageNotFound();
+        }
+
+        consumedKeys[key] = true;
+
+        return inbox[key];
+    }
+
+    /// @notice Write a message to the outbox using a structured Message.
+    /// @dev Sender is taken from msg.sender, chainSrc from block.chainid.
+    /// @param _message The full message (header + payload).
+    function writeMessage(
+        Message calldata _message
+    ) external {
+        MessageHeader calldata h = _message.header;
+        bytes32 key = getKey(
+            block.chainid,
+            h.chainDest,
+            msg.sender,
+            h.receiver,
+            h.sessionId,
+            h.label
+        );
+        outbox[key] = _message.payload;
+        createdKeys[key] = true;
+        messageHeaderListOutbox.push(
+            MessageHeader(
+                block.chainid,
+                h.chainDest,
+                msg.sender,
+                h.receiver,
+                h.sessionId,
+                h.label
+            )
+        );
+
+        if (outboxRootPerChain[h.chainDest] == bytes32(0)) {
+            chainIDsOutbox.push(h.chainDest);
+        }
+        outboxRootPerChain[h.chainDest] = keccak256(
+            abi.encode(outboxRootPerChain[h.chainDest], key, _message.payload)
+        );
+
+        emit NewOutboxKey(messageHeaderListOutbox.length - 1, key);
     }
 
     /// @notice Computes the key for a message in the inbox using its ID.

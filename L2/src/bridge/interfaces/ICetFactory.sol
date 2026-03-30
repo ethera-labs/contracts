@@ -3,22 +3,24 @@ pragma solidity 0.8.30;
 
 interface ICETFactory {
     error DeploymentFailed();
+    error OnlyBridge();
+    error OnlyDeployer();
+    error BridgeAlreadySet();
+    error ZeroAddress();
 
-    function computeSalt(address l1Asset, uint256 remoteChainID) external pure returns (bytes32);
+    function computeSalt(address remoteAsset, uint256 remoteChainID) external pure returns (bytes32);
     function predictAddress(
-        address l1Asset,
+        address remoteAsset,
         uint256 remoteChainID,
         uint8 decimals,
         string memory name,
-        string memory symbol,
-        address bridge
+        string memory symbol
     ) external view returns (address);
     function deployIfAbsent(
-        address l1Asset,
+        address remoteAsset,
         uint256 remoteChainID,
         uint8 decimals,
         string calldata name,
-        string calldata symbol,
-        address bridge
+        string calldata symbol
     ) external returns (address deployed);
 }

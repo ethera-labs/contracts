@@ -14,6 +14,20 @@ interface IUniversalBridge {
     event TokensLocked(address indexed token, address indexed sender, uint256 amount);
     event CETBurned(address indexed token, address indexed sender, uint256 amount);
     event TokensReceived(address indexed token, uint256 amount);
+    event ETHLocked(address indexed sender, uint256 amount);
+    event ETHBridged(
+        uint256 indexed chainDest,
+        address indexed sender,
+        address indexed receiver,
+        uint256 amount,
+        uint256 sessionId,
+        bytes32 messageId
+    );
+    event ETHReceived(address indexed receiver, uint256 amount);
+    event WrappedCETRedeemed(address indexed wrappedCET, address indexed coreCET, address indexed caller, uint256 amount);
+
+    error ZeroAddress();
+    error AssetMismatch();
     event MailboxWrite(uint256 indexed chainId, address indexed account, uint256 indexed sessionId, string label);
     event MailboxAckWrite(uint256 indexed chainId, address indexed account, uint256 indexed sessionId, string label);
 
@@ -21,9 +35,15 @@ interface IUniversalBridge {
     error WrongDestinationChain();
     error InvalidMessage();
     error NoSendMessage();
+    error NoETHSent();
     error CETAddressMismatch();
     error TransferFailed();
     error NoAckMessage();
+    error AckTokenMismatch();
+    error AckAmountMismatch();
     error InvalidCetAddress();
     error NotReceiver();
+    error UseBridgeCETTo();
+    error NotCoreComposeable();
+    error InsufficientEscrowBalance();
 }

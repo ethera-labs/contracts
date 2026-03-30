@@ -25,7 +25,13 @@ interface IMailbox {
         /// @notice Session identifier.
         uint256 sessionId;
         /// @notice Label to differentiate operations.
-        bytes label;
+        string label;
+    }
+
+    /// @notice A full message: header + payload.
+    struct Message {
+        MessageHeader header;
+        bytes payload;
     }
 
     /// @notice Error when the caller is not the coordinator.
@@ -57,7 +63,7 @@ interface IMailbox {
         uint256 chainSrc,
         address sender,
         uint256 sessionId,
-        bytes calldata label
+        string calldata label
     ) external view returns (bytes memory message);
 
     /// @notice Function to write a message to the outbox.
@@ -70,7 +76,7 @@ interface IMailbox {
         uint256 chainDest,
         address receiver,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) external;
 
@@ -86,7 +92,20 @@ interface IMailbox {
         address sender,
         address receiver,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
+    ) external;
+
+    /// @notice Read a message from the inbox using a structured header.
+    /// @param header The message header identifying the message.
+    /// @return message The message data.
+    function readMessage(
+        MessageHeader calldata header
+    ) external returns (bytes memory message);
+
+    /// @notice Write a message to the outbox using a structured Message.
+    /// @param message The full message (header + payload).
+    function writeMessage(
+        Message calldata message
     ) external;
 }

@@ -33,7 +33,7 @@ contract StagedMailbox is ReentrancyGuardTransient, IStagedMailbox {
         address sender,
         address receiver,
         uint256 sessionId,
-        bytes calldata label
+        string calldata label
     ) public pure returns (bytes32 key) {
         if (sender == address(0) || receiver == address(0)) {
             revert ZeroAddress();
@@ -49,7 +49,7 @@ contract StagedMailbox is ReentrancyGuardTransient, IStagedMailbox {
         address sender,
         address receiver,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) public {
         onlyCoordinator();
@@ -69,7 +69,7 @@ contract StagedMailbox is ReentrancyGuardTransient, IStagedMailbox {
         address sender,
         address receiver,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) public {
         onlyCoordinator();
@@ -88,7 +88,7 @@ contract StagedMailbox is ReentrancyGuardTransient, IStagedMailbox {
         uint256 srcChainID,
         address sender,
         uint256 sessionId,
-        bytes calldata label
+        string calldata label
     ) external returns (bytes memory) {
         bytes32 key = getKey(srcChainID, block.chainid, sender, msg.sender, sessionId, label);
         if (!isCreatedKey(key)) {
@@ -117,7 +117,7 @@ contract StagedMailbox is ReentrancyGuardTransient, IStagedMailbox {
         uint256 destChainID,
         address receiver,
         uint256 sessionId,
-        bytes calldata label,
+        string calldata label,
         bytes calldata data
     ) external {
         bytes32 key = getKey(block.chainid, destChainID, msg.sender, receiver, sessionId, label);
