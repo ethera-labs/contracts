@@ -39,6 +39,11 @@ if [ -z "${ETHERSCAN_API_KEY:-}" ]; then
     echo -e "${YELLOW}Warning: ETHERSCAN_API_KEY not set in .env. Verification will be skipped.${NC}"
 fi
 
+# Load .env early so private keys are available for checks
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
 # Check for MIGRATION_PROXY_ADMIN_OWNER_KEY (required for live mode)
 if [ "$DRY_RUN" != "dry-run" ]; then
     if [ -z "${MIGRATION_PROXY_ADMIN_OWNER_KEY:-}" ]; then
@@ -158,6 +163,7 @@ else
     # In dry-run, use the ProxyAdmin owner address from rollup config as sender
     PROXY_ADMIN_OWNER=$(jq -r '.proxyAdmin.owner' "$ROLLUP_CONFIG")
     FORGE_ARGS+=("--sender" "$PROXY_ADMIN_OWNER")
+    FORGE_ARGS+=("--unlocked")
     # Add maximum verbosity for dry-run to show all console.log and traces
     FORGE_ARGS+=("-vvv")
 fi
