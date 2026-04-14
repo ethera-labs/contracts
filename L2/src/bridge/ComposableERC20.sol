@@ -15,6 +15,7 @@ contract ComposableERC20 is ERC20, IERC7802, IComposableERC20 {
     uint256 public immutable override remoteChainID;
 
     address public immutable owner;
+    CetType public immutable override cetType;
     mapping(address => bool) public authorizedBridges;
 
     string private _name;
@@ -30,6 +31,9 @@ contract ComposableERC20 is ERC20, IERC7802, IComposableERC20 {
         remoteAsset = _remoteAsset;
         remoteChainID = _remoteChainID;
         owner = msg.sender;
+        cetType = (_remoteAsset == address(this) && _remoteChainID == block.chainid)
+            ? CetType.CORE
+            : CetType.WRAPPED;
         authorizedBridges[_bridge] = true;
         emit BridgeAuthorized(_bridge);
     }

@@ -40,10 +40,6 @@ contract L2ComposeBridge is ReentrancyGuard {
     /// @notice Address of the L1ComposeBridge. One-shot set post-L1-deploy.
     address public otherBridge;
 
-    // ---------------------------------------------------------------------------------------------
-    // Events (parity with OP L2StandardBridge + Compose-specific)
-    // ---------------------------------------------------------------------------------------------
-
     event ETHBridgeInitiated(address indexed from, address indexed to, uint256 amount, bytes extraData);
     event ETHBridgeFinalized(address indexed from, address indexed to, uint256 amount, bytes extraData);
     event ERC20BridgeInitiated(
@@ -85,10 +81,6 @@ contract L2ComposeBridge is ReentrancyGuard {
 
     event OtherBridgeSet(address indexed otherBridge);
 
-    // ---------------------------------------------------------------------------------------------
-    // Errors
-    // ---------------------------------------------------------------------------------------------
-
     error NotEOA();
     error NotFromOtherBridge();
     error ZeroAddress();
@@ -100,10 +92,6 @@ contract L2ComposeBridge is ReentrancyGuard {
     error ETHValueMismatch();
     error OnlyOwner();
     error OtherBridgeAlreadySet();
-
-    // ---------------------------------------------------------------------------------------------
-    // Constructor / wiring
-    // ---------------------------------------------------------------------------------------------
 
     constructor(address _messenger, address _cetFactory, uint256 _l1ChainId) {
         if (_messenger == address(0) || _cetFactory == address(0)) revert ZeroAddress();
@@ -134,17 +122,9 @@ contract L2ComposeBridge is ReentrancyGuard {
         _;
     }
 
-    // ---------------------------------------------------------------------------------------------
-    // ETH receive path — bridges to sender on L1
-    // ---------------------------------------------------------------------------------------------
-
     receive() external payable onlyEOA {
         _initiateBridgeETH(msg.sender, msg.sender, msg.value, 200_000, bytes(""));
     }
-
-    // ---------------------------------------------------------------------------------------------
-    // ETH initiate
-    // ---------------------------------------------------------------------------------------------
 
     function bridgeETH(uint32 _minGasLimit, bytes calldata _extraData) external payable onlyEOA {
         _initiateBridgeETH(msg.sender, msg.sender, msg.value, _minGasLimit, _extraData);
@@ -153,10 +133,6 @@ contract L2ComposeBridge is ReentrancyGuard {
     function bridgeETHTo(address _to, uint32 _minGasLimit, bytes calldata _extraData) external payable {
         _initiateBridgeETH(msg.sender, _to, msg.value, _minGasLimit, _extraData);
     }
-
-    // ---------------------------------------------------------------------------------------------
-    // ERC20 initiate
-    // ---------------------------------------------------------------------------------------------
 
     function bridgeERC20(
         address _localToken,
@@ -183,10 +159,6 @@ contract L2ComposeBridge is ReentrancyGuard {
     {
         _initiateBridgeERC20(_localToken, _remoteToken, msg.sender, _to, _amount, _minGasLimit, _extraData);
     }
-
-    // ---------------------------------------------------------------------------------------------
-    // Finalize — messenger-gated
-    // ---------------------------------------------------------------------------------------------
 
     /// @notice Finalize ETH deposit from L1. Forwards `msg.value` to `_to`.
     function finalizeBridgeETH(
@@ -242,10 +214,6 @@ contract L2ComposeBridge is ReentrancyGuard {
         emit DepositFinalized(_remoteToken, _localToken, _from, _to, _amount, userExtra);
         emit ERC20BridgeFinalized(_localToken, _remoteToken, _from, _to, _amount, userExtra);
     }
-
-    // ---------------------------------------------------------------------------------------------
-    // Internal
-    // ---------------------------------------------------------------------------------------------
 
     function _initiateBridgeETH(
         address _from,

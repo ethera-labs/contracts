@@ -45,12 +45,8 @@ contract ComposeL2ToL2Bridge is IComposeL2ToL2Bridge, ReentrancyGuard {
     }
 
     function isCoreComposeable(address token) internal view returns (bool) {
-        try IComposableERC20(token).remoteAsset() returns (address asset) {
-            try IComposableERC20(token).remoteChainID() returns (uint256 chainID) {
-                return asset == token && chainID == block.chainid;
-            } catch {
-                return false;
-            }
+        try IComposableERC20(token).cetType() returns (IComposableERC20.CetType t) {
+            return t == IComposableERC20.CetType.CORE;
         } catch {
             return false;
         }
