@@ -5,6 +5,7 @@ import { ComposeCommonTest } from "test/setup/ComposeCommonTest.sol";
 import { ISuperchainConfig } from "@optimism/interfaces/L1/ISuperchainConfig.sol";
 import { ComposeERC20Lockbox } from "src/ComposeERC20Lockbox.sol";
 import { IComposeERC20Lockbox } from "src/interfaces/IComposeERC20Lockbox.sol";
+import { IComposePortal } from "src/interfaces/IComposePortal.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Proxy } from "src/universal/Proxy.sol";
 
@@ -16,117 +17,138 @@ contract MockERC20 is ERC20 {
     }
 }
 
+contract MockComposePortal {
+    address public l2Sender = 0x000000000000000000000000000000000000dEaD;
+
+    function setL2Sender(address _s) external {
+        l2Sender = _s;
+    }
+
+    function pushAndLock(IComposeERC20Lockbox _lockbox, address _token, uint256 _amount) external {
+        ERC20(_token).transfer(address(_lockbox), _amount);
+        _lockbox.lockERC20(_token, _amount);
+    }
+
+    function unlock(IComposeERC20Lockbox _lockbox, address _token, uint256 _amount, address _to) external {
+        _lockbox.unlockERC20(_token, _amount, _to);
+    }
+}
+
 contract ComposeERC20LockboxTest is ComposeCommonTest {
     ComposeERC20Lockbox internal erc20Lockbox;
-    address internal bridge1;
-    address internal bridge2;
+    MockComposePortal internal portal1;
+    MockComposePortal internal portal2;
     MockERC20 internal tokenM1;
 
     function setUp() public override {
         super.setUp();
 
-        bridge1 = makeAddr("bridge1");
-        bridge2 = makeAddr("bridge2");
+        portal1 = new MockComposePortal();
+        portal2 = new MockComposePortal();
 
         tokenM1 = new MockERC20("M1 Token", "M1");
 
         ComposeERC20Lockbox impl = new ComposeERC20Lockbox();
         Proxy proxy = new Proxy(address(composeProxyAdmin));
 
-        address[] memory bridges = new address[](2);
-        bridges[0] = bridge1;
-        bridges[1] = bridge2;
+        IComposePortal[] memory portals = new IComposePortal[](2);
+        portals[0] = IComposePortal(address(portal1));
+        portals[1] = IComposePortal(address(portal2));
 
         vm.prank(proxyAdminOwner);
         composeProxyAdmin.upgradeAndCall(
             payable(address(proxy)),
             address(impl),
-            abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, bridges))
+            abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, portals))
         );
 
         erc20Lockbox = ComposeERC20Lockbox(address(proxy));
     }
 
-    function test_authorizeBridge_success() public {
-        address newBridge = makeAddr("newBridge");
+    function test_authorizePortal_success() public {
+        MockComposePortal newPortal = new MockComposePortal();
 
         vm.prank(proxyAdminOwner);
-        erc20Lockbox.authorizeBridge(newBridge);
+        erc20Lockbox.authorizePortal(IComposePortal(address(newPortal)));
 
-        assertTrue(erc20Lockbox.authorizedBridges(newBridge));
+        assertTrue(erc20Lockbox.authorizedPortals(IComposePortal(address(newPortal))));
     }
 
-    function test_authorizeBridge_revertsIfNotOwner() public {
+    function test_authorizePortal_revertsIfNotOwner() public {
+        MockComposePortal newPortal = new MockComposePortal();
         vm.prank(alice);
         vm.expectRevert();
-        erc20Lockbox.authorizeBridge(makeAddr("newBridge"));
+        erc20Lockbox.authorizePortal(IComposePortal(address(newPortal)));
     }
 
-    function test_authorizeBridge_revertsOnZeroAddress() public {
+    function test_authorizePortal_revertsOnZeroAddress() public {
         vm.prank(proxyAdminOwner);
         vm.expectRevert(IComposeERC20Lockbox.ERC20Lockbox_ZeroAddress.selector);
-        erc20Lockbox.authorizeBridge(address(0));
+        erc20Lockbox.authorizePortal(IComposePortal(address(0)));
     }
 
     function test_lockERC20_success() public {
         uint256 lockAmount = 1000e18;
 
-        tokenM1.mint(alice, lockAmount);
-        vm.prank(alice);
-        tokenM1.approve(address(erc20Lockbox), lockAmount);
-
-        vm.prank(bridge1);
-        erc20Lockbox.lockERC20(address(tokenM1), alice, lockAmount);
+        tokenM1.mint(address(portal1), lockAmount);
+        portal1.pushAndLock(erc20Lockbox, address(tokenM1), lockAmount);
 
         assertEq(tokenM1.balanceOf(address(erc20Lockbox)), lockAmount);
-        assertEq(tokenM1.balanceOf(alice), 0);
+        assertEq(erc20Lockbox.totalDeposited(address(tokenM1)), lockAmount);
     }
 
     function test_lockERC20_revertsIfNotAuthorized() public {
-        address rando = makeAddr("rando");
-        tokenM1.mint(alice, 100e18);
+        tokenM1.mint(address(this), 100e18);
+        tokenM1.transfer(address(erc20Lockbox), 100e18);
 
-        vm.prank(alice);
-        tokenM1.approve(address(erc20Lockbox), 100e18);
-
-        vm.prank(rando);
         vm.expectRevert(IComposeERC20Lockbox.ERC20Lockbox_Unauthorized.selector);
-        erc20Lockbox.lockERC20(address(tokenM1), alice, 100e18);
+        erc20Lockbox.lockERC20(address(tokenM1), 100e18);
     }
 
     function test_lockERC20_revertsOnZeroAmount() public {
-        vm.prank(bridge1);
+        vm.prank(address(portal1));
         vm.expectRevert(IComposeERC20Lockbox.ERC20Lockbox_ZeroAmount.selector);
-        erc20Lockbox.lockERC20(address(tokenM1), alice, 0);
+        erc20Lockbox.lockERC20(address(tokenM1), 0);
     }
 
     function test_lockERC20_revertsOnZeroToken() public {
-        vm.prank(bridge1);
+        vm.prank(address(portal1));
         vm.expectRevert(IComposeERC20Lockbox.ERC20Lockbox_ZeroAddress.selector);
-        erc20Lockbox.lockERC20(address(0), alice, 100e18);
+        erc20Lockbox.lockERC20(address(0), 100e18);
     }
 
-    function test_lockERC20_revertsOnZeroFrom() public {
-        vm.prank(bridge1);
-        vm.expectRevert(IComposeERC20Lockbox.ERC20Lockbox_ZeroAddress.selector);
-        erc20Lockbox.lockERC20(address(tokenM1), address(0), 100e18);
+    function test_lockERC20_revertsIfTokensNotPushed() public {
+        // Portal calls lockERC20 without first pushing tokens; invariant check fails.
+        vm.prank(address(portal1));
+        vm.expectRevert(IComposeERC20Lockbox.ERC20Lockbox_InsufficientBalance.selector);
+        erc20Lockbox.lockERC20(address(tokenM1), 100e18);
+    }
+
+    function test_lockERC20_worksWhilePaused() public {
+        vm.prank(guardian);
+        composeSuperchainConfig.pause(address(0));
+
+        tokenM1.mint(address(portal1), 100e18);
+        portal1.pushAndLock(erc20Lockbox, address(tokenM1), 100e18);
+
+        assertEq(tokenM1.balanceOf(address(erc20Lockbox)), 100e18);
+    }
+
+    function _lockThroughPortal(MockComposePortal _p, uint256 _amount) internal {
+        tokenM1.mint(address(_p), _amount);
+        _p.pushAndLock(erc20Lockbox, address(tokenM1), _amount);
     }
 
     function test_unlockERC20_success() public {
-        uint256 lockAmount = 1000e18;
-        uint256 unlockAmount = 400e18;
+        _lockThroughPortal(portal1, 1000e18);
 
-        tokenM1.mint(alice, lockAmount);
-        vm.prank(alice);
-        tokenM1.approve(address(erc20Lockbox), lockAmount);
-        vm.prank(bridge1);
-        erc20Lockbox.lockERC20(address(tokenM1), alice, lockAmount);
+        // Portal must be inside a finalize context.
+        portal2.setL2Sender(alice);
+        portal2.unlock(erc20Lockbox, address(tokenM1), 400e18, bob);
 
-        vm.prank(bridge2);
-        erc20Lockbox.unlockERC20(address(tokenM1), unlockAmount, bob);
-
-        assertEq(tokenM1.balanceOf(bob), unlockAmount);
-        assertEq(tokenM1.balanceOf(address(erc20Lockbox)), lockAmount - unlockAmount);
+        assertEq(tokenM1.balanceOf(bob), 400e18);
+        assertEq(tokenM1.balanceOf(address(erc20Lockbox)), 600e18);
+        assertEq(erc20Lockbox.totalDeposited(address(tokenM1)), 600e18);
     }
 
     function test_unlockERC20_revertsIfNotAuthorized() public {
@@ -135,59 +157,52 @@ contract ComposeERC20LockboxTest is ComposeCommonTest {
         erc20Lockbox.unlockERC20(address(tokenM1), 100e18, alice);
     }
 
-    function test_unlockERC20_revertsIfInsufficientBalance() public {
-        vm.prank(bridge1);
+    function test_unlockERC20_revertsIfNotInFinalize() public {
+        _lockThroughPortal(portal1, 100e18);
+
+        // portal1.l2Sender still DEFAULT — not in finalize.
+        vm.expectRevert(IComposeERC20Lockbox.ERC20Lockbox_NotInFinalize.selector);
+        portal1.unlock(erc20Lockbox, address(tokenM1), 50e18, alice);
+    }
+
+    function test_unlockERC20_revertsIfInsufficientAccounting() public {
+        portal1.setL2Sender(alice);
         vm.expectRevert(IComposeERC20Lockbox.ERC20Lockbox_InsufficientBalance.selector);
-        erc20Lockbox.unlockERC20(address(tokenM1), 100e18, alice);
+        portal1.unlock(erc20Lockbox, address(tokenM1), 100e18, alice);
     }
 
     function test_unlockERC20_revertsWhenPaused() public {
-        tokenM1.mint(alice, 1000e18);
-        vm.prank(alice);
-        tokenM1.approve(address(erc20Lockbox), 1000e18);
-        vm.prank(bridge1);
-        erc20Lockbox.lockERC20(address(tokenM1), alice, 1000e18);
+        _lockThroughPortal(portal1, 1000e18);
 
         vm.prank(guardian);
         composeSuperchainConfig.pause(address(0));
 
-        vm.prank(bridge1);
+        portal1.setL2Sender(alice);
         vm.expectRevert(IComposeERC20Lockbox.ERC20Lockbox_Paused.selector);
-        erc20Lockbox.unlockERC20(address(tokenM1), 100e18, alice);
+        portal1.unlock(erc20Lockbox, address(tokenM1), 100e18, alice);
     }
 
     function test_unlockERC20_revertsOnZeroAmount() public {
-        vm.prank(bridge1);
+        portal1.setL2Sender(alice);
         vm.expectRevert(IComposeERC20Lockbox.ERC20Lockbox_ZeroAmount.selector);
-        erc20Lockbox.unlockERC20(address(tokenM1), 0, alice);
+        portal1.unlock(erc20Lockbox, address(tokenM1), 0, alice);
     }
 
     function test_unlockERC20_revertsOnZeroRecipient() public {
-        tokenM1.mint(alice, 100e18);
-        vm.prank(alice);
-        tokenM1.approve(address(erc20Lockbox), 100e18);
-        vm.prank(bridge1);
-        erc20Lockbox.lockERC20(address(tokenM1), alice, 100e18);
-
-        vm.prank(bridge1);
+        _lockThroughPortal(portal1, 100e18);
+        portal1.setL2Sender(alice);
         vm.expectRevert(IComposeERC20Lockbox.ERC20Lockbox_ZeroAddress.selector);
-        erc20Lockbox.unlockERC20(address(tokenM1), 50e18, address(0));
+        portal1.unlock(erc20Lockbox, address(tokenM1), 50e18, address(0));
     }
 
-    function test_crossRollup_lockViaBridge1_unlockViaBridge2() public {
-        uint256 depositAmount = 5000e18;
-        tokenM1.mint(alice, depositAmount);
-        vm.prank(alice);
-        tokenM1.approve(address(erc20Lockbox), depositAmount);
-        vm.prank(bridge1);
-        erc20Lockbox.lockERC20(address(tokenM1), alice, depositAmount);
+    function test_crossRollup_lockViaPortal1_unlockViaPortal2() public {
+        _lockThroughPortal(portal1, 5000e18);
 
-        uint256 withdrawAmount = 2000e18;
-        vm.prank(bridge2);
-        erc20Lockbox.unlockERC20(address(tokenM1), withdrawAmount, bob);
+        portal2.setL2Sender(alice);
+        portal2.unlock(erc20Lockbox, address(tokenM1), 2000e18, bob);
 
-        assertEq(tokenM1.balanceOf(bob), withdrawAmount);
-        assertEq(tokenM1.balanceOf(address(erc20Lockbox)), depositAmount - withdrawAmount);
+        assertEq(tokenM1.balanceOf(bob), 2000e18);
+        assertEq(tokenM1.balanceOf(address(erc20Lockbox)), 3000e18);
     }
 
     function test_paused_returnsFalseInitially() public view {
@@ -197,63 +212,38 @@ contract ComposeERC20LockboxTest is ComposeCommonTest {
     function test_paused_returnsTrueWhenPaused() public {
         vm.prank(guardian);
         composeSuperchainConfig.pause(address(0));
-
         assertTrue(erc20Lockbox.paused());
-    }
-
-    function test_lockERC20_worksWhilePaused() public {
-        vm.prank(guardian);
-        composeSuperchainConfig.pause(address(0));
-
-        tokenM1.mint(alice, 100e18);
-        vm.prank(alice);
-        tokenM1.approve(address(erc20Lockbox), 100e18);
-        vm.prank(bridge1);
-        erc20Lockbox.lockERC20(address(tokenM1), alice, 100e18);
-
-        assertEq(tokenM1.balanceOf(address(erc20Lockbox)), 100e18);
     }
 
     function test_multipleTokens_independentBalances() public {
         MockERC20 tokenM2 = new MockERC20("M2 Token", "M2");
 
-        tokenM1.mint(alice, 500e18);
-        vm.prank(alice);
-        tokenM1.approve(address(erc20Lockbox), 500e18);
-        vm.prank(bridge1);
-        erc20Lockbox.lockERC20(address(tokenM1), alice, 500e18);
+        _lockThroughPortal(portal1, 500e18);
 
-        tokenM2.mint(bob, 300e18);
-        vm.prank(bob);
-        tokenM2.approve(address(erc20Lockbox), 300e18);
-        vm.prank(bridge2);
-        erc20Lockbox.lockERC20(address(tokenM2), bob, 300e18);
+        tokenM2.mint(address(portal2), 300e18);
+        portal2.pushAndLock(erc20Lockbox, address(tokenM2), 300e18);
 
         assertEq(tokenM1.balanceOf(address(erc20Lockbox)), 500e18);
         assertEq(tokenM2.balanceOf(address(erc20Lockbox)), 300e18);
 
-        vm.prank(bridge2);
-        erc20Lockbox.unlockERC20(address(tokenM1), 200e18, alice);
+        portal2.setL2Sender(alice);
+        portal2.unlock(erc20Lockbox, address(tokenM1), 200e18, alice);
 
         assertEq(tokenM1.balanceOf(alice), 200e18);
         assertEq(tokenM2.balanceOf(address(erc20Lockbox)), 300e18);
     }
 
     function test_migrateLiquidity_success() public {
-        tokenM1.mint(alice, 1000e18);
-        vm.prank(alice);
-        tokenM1.approve(address(erc20Lockbox), 1000e18);
-        vm.prank(bridge1);
-        erc20Lockbox.lockERC20(address(tokenM1), alice, 1000e18);
+        _lockThroughPortal(portal1, 1000e18);
 
         ComposeERC20Lockbox impl2 = new ComposeERC20Lockbox();
         Proxy proxy2 = new Proxy(address(composeProxyAdmin));
-        address[] memory emptyBridges = new address[](0);
+        IComposePortal[] memory emptyPortals = new IComposePortal[](0);
         vm.prank(proxyAdminOwner);
         composeProxyAdmin.upgradeAndCall(
             payable(address(proxy2)),
             address(impl2),
-            abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, emptyBridges))
+            abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, emptyPortals))
         );
         ComposeERC20Lockbox lockbox2 = ComposeERC20Lockbox(address(proxy2));
 
@@ -270,12 +260,12 @@ contract ComposeERC20LockboxTest is ComposeCommonTest {
     function test_migrateLiquidity_revertsIfNotOwner() public {
         ComposeERC20Lockbox impl2 = new ComposeERC20Lockbox();
         Proxy proxy2 = new Proxy(address(composeProxyAdmin));
-        address[] memory emptyBridges = new address[](0);
+        IComposePortal[] memory emptyPortals = new IComposePortal[](0);
         vm.prank(proxyAdminOwner);
         composeProxyAdmin.upgradeAndCall(
             payable(address(proxy2)),
             address(impl2),
-            abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, emptyBridges))
+            abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, emptyPortals))
         );
 
         vm.prank(alice);

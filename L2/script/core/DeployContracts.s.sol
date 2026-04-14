@@ -5,7 +5,6 @@ import { Script, console } from "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 
 import { Mailbox } from "@ssv/src/core/Mailbox.sol";
-import { StagedMailbox } from "@ssv/src/core/StagedMailbox.sol";
 import { PingPong } from "@ssv/src/core/PingPong.sol";
 import { BridgeableToken } from "@ssv/src/core/BridgeableToken.sol";
 import { Bridge } from "@ssv/src/core/Bridge.sol";
@@ -50,17 +49,6 @@ contract DeployContracts is Script {
         Mailbox mailbox = Mailbox(mailboxAddr);
         console.log("Mailbox deployed at:", address(mailbox));
 
-        // Deploy StagedMailbox
-        address stagedMailboxAddr = _deployCreate2(
-            salt,
-            abi.encodePacked(
-                type(StagedMailbox).creationCode,
-                abi.encode(coordinator)
-            )
-        );
-        StagedMailbox stagedMailbox = StagedMailbox(stagedMailboxAddr);
-        console.log("StagedMailbox deployed at:", address(stagedMailbox));
-
         // Deploy PingPong
         address pingPongAddr = _deployCreate2(
             salt,
@@ -99,7 +87,6 @@ contract DeployContracts is Script {
         console.log("========================================");
         console.log("Deployment Summary:");
         console.log("  Mailbox:          ", address(mailbox));
-        console.log("  StagedMailbox:    ", address(stagedMailbox));
         console.log("  PingPong:         ", address(pingPong));
         console.log("  Bridge:           ", address(bridge));
         console.log("  BridgeableToken:  ", address(token));
@@ -107,7 +94,7 @@ contract DeployContracts is Script {
         console.log("========================================");
 
         // Save deployment info to JSON
-        finalJson = _saveToJson(coordinator, bridge, pingPong, mailbox, stagedMailbox, token);
+        finalJson = _saveToJson(coordinator, bridge, pingPong, mailbox, token);
         
         // Write to artifacts directory with network name
         string memory filename = string.concat("artifacts/deploy-", networkName, ".json");
@@ -126,14 +113,12 @@ contract DeployContracts is Script {
         Bridge bridge,
         PingPong pingPong,
         Mailbox mailbox,
-        StagedMailbox stagedMailbox,
         BridgeableToken token
     ) internal returns (string memory) {
         string memory parent = "parent";
 
         string memory deployed_addresses = "addresses";
         vm.serializeAddress(deployed_addresses, "Mailbox", address(mailbox));
-        vm.serializeAddress(deployed_addresses, "StagedMailbox", address(stagedMailbox));
         vm.serializeAddress(deployed_addresses, "PingPong", address(pingPong));
         vm.serializeAddress(deployed_addresses, "BridgeableToken", address(token));
         vm.serializeAddress(deployed_addresses, "Bridge", address(bridge));

@@ -2,7 +2,6 @@
 pragma solidity ^0.8.15;
 import {IDisputeGame} from "@optimism/interfaces/dispute/IDisputeGame.sol";
 
-
 interface IComposeTypes {
     struct InitParams {
         address proposer;

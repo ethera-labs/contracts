@@ -7,16 +7,17 @@ import { Proxy } from "src/universal/Proxy.sol";
 import { IProxyAdmin } from "interfaces/universal/IProxyAdmin.sol";
 import { ISuperchainConfig } from "interfaces/L1/ISuperchainConfig.sol";
 import { ComposeERC20Lockbox } from "src/ComposeERC20Lockbox.sol";
+import { IComposePortal } from "src/interfaces/IComposePortal.sol";
 
 contract DeployERC20LockboxProxy is Script {
     function run() public {
         address proxyAdmin = vm.envAddress("PROXY_ADMIN");
         address lockboxImpl = vm.envAddress("LOCKBOX_IMPL");
         address superchainConfig = vm.envAddress("SUPERCHAIN_CONFIG");
-        address bridge = vm.envAddress("BRIDGE");
+        address portal = vm.envAddress("PORTAL");
 
-        address[] memory bridges = new address[](1);
-        bridges[0] = bridge;
+        IComposePortal[] memory portals = new IComposePortal[](1);
+        portals[0] = IComposePortal(portal);
 
         vm.startBroadcast();
 
@@ -26,9 +27,9 @@ contract DeployERC20LockboxProxy is Script {
         IProxyAdmin(proxyAdmin).upgradeAndCall(
             payable(address(proxy)),
             lockboxImpl,
-            abi.encodeCall(ComposeERC20Lockbox.initialize, (ISuperchainConfig(superchainConfig), bridges))
+            abi.encodeCall(ComposeERC20Lockbox.initialize, (ISuperchainConfig(superchainConfig), portals))
         );
-        console.log("Lockbox initialized with bridge:", bridge);
+        console.log("Lockbox initialized with portal:", portal);
 
         vm.stopBroadcast();
     }
