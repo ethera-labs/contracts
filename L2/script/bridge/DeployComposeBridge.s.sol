@@ -58,12 +58,12 @@ contract DeployComposeBridge is Script {
         // [1] Cross-chain-deterministic contracts via CREATE2
         // -----------------------------------------------------------------------------------------
         // (a) CetFactory — salt only. No ctor args.
-        cetFactory = new CetFactory{ salt: salt }();
+        cetFactory = new CetFactory{ salt: salt }(owner);
         console.log("\n[1a] CetFactory              :", address(cetFactory));
 
         // (b) UniversalBridgeMailbox — ctor(coordinator). Coordinator must be SAME value across
         //      all chains that will route L2↔L2 mail, so the mailbox address is identical.
-        mailbox = new UniversalBridgeMailbox{ salt: salt }(coordinator);
+        mailbox = new UniversalBridgeMailbox{ salt: salt }(coordinator, owner);
         console.log("[1b] UniversalBridgeMailbox   :", address(mailbox));
 
         // (c) ComposeETHLiquidity — chain-local pool. Address parity across chains not required

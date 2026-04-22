@@ -248,7 +248,7 @@ contract UpgradeToComposeBridge is Script {
         ComposeERC20Lockbox lb = ComposeERC20Lockbox(erc20Lockbox);
 
         require(
-            keccak256(bytes(portal.version())) == keccak256(bytes("5.0.0-compose")),
+            keccak256(bytes(portal.version())) == keccak256(bytes("1.0.0-compose")),
             "portal.version mismatch"
         );
         require(address(portal.erc20Lockbox()) == erc20Lockbox, "portal.erc20Lockbox mismatch");
@@ -276,13 +276,17 @@ contract UpgradeToComposeBridge is Script {
     function _broadcastStart(address who) internal {
         if (dryRun) {
             console.log("    [DRY RUN] broadcaster:", who);
+            vm.startPrank(who, who);
             return;
         }
         vm.startBroadcast(who);
     }
 
     function _broadcastStop() internal {
-        if (dryRun) return;
+        if (dryRun) {
+            vm.stopPrank();
+            return;
+        }
         vm.stopBroadcast();
     }
 

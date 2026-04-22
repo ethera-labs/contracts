@@ -14,6 +14,7 @@ import { IAnchorStateRegistry } from "interfaces/dispute/IAnchorStateRegistry.so
 import { ICrossDomainMessenger } from "interfaces/universal/ICrossDomainMessenger.sol";
 import { ISuperchainConfig } from "interfaces/L1/ISuperchainConfig.sol";
 import { IOptimismPortal2 } from "interfaces/L1/IOptimismPortal2.sol";
+import { IETHLockbox } from "interfaces/L1/IETHLockbox.sol";
 import { MockSystemConfig } from "test/mock/MockSystemConfig.sol";
 import { MockAnchorStateRegistry } from "test/mock/MockAnchorStateRegistry.sol";
 import { MockL1CrossDomainMessenger } from "test/mock/MockL1CrossDomainMessenger.sol";
@@ -650,13 +651,12 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
 
         portal_ = ComposePortal(payable(address(proxy)));
 
-        stdstore
-            .target(address(portal_))
-            .sig(portal_.ethLockbox.selector)
-            .checked_write(address(composeETHLockbox));
-
         vm.prank(proxyAdminOwner);
-        portal_.initialize(ISystemConfig(address(systemConfig)), IAnchorStateRegistry(address(asr)));
+        portal_.initialize(
+            ISystemConfig(address(systemConfig)),
+            IAnchorStateRegistry(address(asr)),
+            IETHLockbox(address(composeETHLockbox))
+        );
     }
 
     function _deployErc20Lockbox(ComposePortal portal_) internal returns (ComposeERC20Lockbox lb_) {

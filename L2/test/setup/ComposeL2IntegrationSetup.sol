@@ -45,6 +45,10 @@ contract MockCoreCET {
         return block.chainid;
     }
 
+    function cetType() external pure returns (IComposableERC20.CetType) {
+        return IComposableERC20.CetType.CORE;
+    }
+
     function crosschainMint(address to, uint256 amount) external {
         require(authorizedBridges[msg.sender], "auth");
         balanceOf[to] += amount;
@@ -133,8 +137,8 @@ contract ComposeL2IntegrationSetup is Test {
 
         vm.startPrank(owner);
 
-        cetFactory   = new CetFactory();
-        mailbox      = new UniversalBridgeMailbox(coordinator);
+        cetFactory   = new CetFactory(owner);
+        mailbox      = new UniversalBridgeMailbox(coordinator, owner);
         ethLiquidity = new ComposeETHLiquidity(owner);
 
         l2l2Bridge = new ComposeL2ToL2Bridge(
