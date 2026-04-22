@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import { OptimismPortal2 } from "@optimism/src/L1/OptimismPortal2.sol";
+import { OptimismPortalInterop } from "@optimism/src/L1/OptimismPortalInterop.sol";
 import { Constants } from "@optimism/src/libraries/Constants.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -11,11 +11,16 @@ import { IComposePortal } from "src/interfaces/IComposePortal.sol";
 
 /// @custom:proxied true
 /// @title ComposePortal
-/// @notice Extends OptimismPortal2 with ERC20 custody via a shared ComposeERC20Lockbox.
+/// @notice Extends OptimismPortalInterop with ERC20 custody via a shared ComposeERC20Lockbox.
 ///         Authorized L1 compose bridges call `depositTransaction` (ERC20 overload) to lock
 ///         non-CET tokens on deposit, and `unlockERC20` during withdrawal finalize to release
 ///         them. ETH custody remains handled by the parent's ETHLockbox integration.
-contract ComposePortal is OptimismPortal2 {
+/// @dev    Inherits OptimismPortalInterop (not OptimismPortal2) so that Super Root withdrawal
+///         proofs keep working after the Compose impl swap. The parent's `superRootsActive` bool
+///         sits at the exact storage slot previously reserved by OP2's `spacer_63_20_1`, so
+///         chains migrated to Super Roots via `migrateToSuperRoots` retain that flag across the
+///         upgrade without re-init.
+contract ComposePortal is OptimismPortalInterop {
     using SafeERC20 for IERC20;
 
     /// @notice Shared ERC20 lockbox for non-CET tokens.
@@ -61,13 +66,13 @@ contract ComposePortal is OptimismPortal2 {
     );
 
     /// @notice Semantic version.
-    /// @custom:semver 1.1.0-compose
+    /// @custom:semver 1.0.0-compose
     function version() public pure override returns (string memory) {
         return "1.0.0-compose";
     }
 
     /// @param _proofMaturityDelaySeconds The proof maturity delay in seconds.
-    constructor(uint256 _proofMaturityDelaySeconds) OptimismPortal2(_proofMaturityDelaySeconds) {
+    constructor(uint256 _proofMaturityDelaySeconds) OptimismPortalInterop(_proofMaturityDelaySeconds) {
         // Parent constructor disables initializers and sets PROOF_MATURITY_DELAY_SECONDS.
     }
 
