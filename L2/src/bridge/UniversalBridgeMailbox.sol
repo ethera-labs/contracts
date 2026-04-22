@@ -40,9 +40,9 @@ contract UniversalBridgeMailbox is IUniversalBridgeMailbox {
         _;
     }
 
-    constructor(address _coordinator) {
+    constructor(address _coordinator, address _owner) {
         COORDINATOR = _coordinator;
-        owner = msg.sender;
+        owner = _owner;
     }
 
     function authorizeBridge(address _bridge) external {

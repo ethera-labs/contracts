@@ -18,8 +18,9 @@ contract CetFactory is ICETFactory {
         _;
     }
 
-    constructor() {
-        deployer = msg.sender;
+    constructor(address _deployer) {
+        if (_deployer == address(0)) revert ZeroAddress();
+        deployer = _deployer;
     }
 
     function authorizeBridge(address _bridge) external {
