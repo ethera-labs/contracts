@@ -27,7 +27,6 @@ import { Features } from "src/L1/SystemConfig.sol";
 /// @notice Per-rollup L1 upgrade: swap OptimismPortal impl for ComposePortal, deploy
 ///         ComposeL1Bridge proxy, wire shared ComposeERC20Lockbox. Assumes rollup already
 ///         migrated to Compose V4 (Interop portal + shared ETHLockbox + Compose ASR/DGF).
-///         All steps idempotent; re-runnable.
 contract UpgradeToComposeBridge is Script {
     /// @dev Must be in alphabetical order for vm.parseJson.
     struct Cfg {
@@ -318,7 +317,5 @@ contract UpgradeToComposeBridge is Script {
         console.log("  erc20Lockbox       :", erc20Lockbox);
         console.log("  bridgeProxy        :", bridgeProxy);
         console.log("");
-        console.log("Next step: wire L2 bridge address once L2 deploys:");
-        console.log("  ComposeL1Bridge(bridgeProxy).setOtherBridge(l2BridgeAddr)");
     }
 }
