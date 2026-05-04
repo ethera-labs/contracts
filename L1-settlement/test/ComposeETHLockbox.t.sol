@@ -10,16 +10,21 @@ import { MockPortal } from "test/mock/MockPortal.sol";
 contract ComposeETHLockboxTest is ComposeCommonTest {
     MockPortal internal mockPortal1;
     MockPortal internal mockPortal2;
+    MockPortal internal mockPortalDifferentConfig;
 
     function setUp() public override {
         super.setUp();
-        
+
         // Deploy mock portals with the same SuperchainConfig
         mockPortal1 = new MockPortal(composeSuperchainConfig);
         mockPortal2 = new MockPortal(composeSuperchainConfig);
-        
+
         vm.deal(address(mockPortal1), 1000 ether);
         vm.deal(address(mockPortal2), 1000 ether);
+
+        // portal with a different SuperchainConfig
+        mockPortalDifferentConfig = new MockPortal(rollupSuperchainConfig);
+        vm.deal(address(mockPortalDifferentConfig), 1000 ether);
     }
 
     // ============ Authorization Tests ============
@@ -51,6 +56,37 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
         assertTrue(composeETHLockbox.authorizedPortals(IOptimismPortal(payable(address(mockPortal1)))));
     }
 
+    function test_reauthorize_differentConfigPortal_canReauthorize() public {
+        vm.startPrank(proxyAdminOwner);
+        composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortalDifferentConfig))));
+        composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortalDifferentConfig))));
+        vm.stopPrank();
+
+        assertTrue(
+            composeETHLockbox.authorizedPortals(
+                IOptimismPortal(payable(address(mockPortalDifferentConfig)))
+            )
+        );
+    }
+
+    function test_authorizePortal_withDifferentSuperchainConfig_success() public {
+        assertTrue(
+            address(mockPortalDifferentConfig.superchainConfig())
+            != address(composeETHLockbox.superchainConfig())
+        );
+
+        vm.prank(proxyAdminOwner);
+        composeETHLockbox.authorizePortal(
+            IOptimismPortal(payable(address(mockPortalDifferentConfig)))
+        );
+
+        assertTrue(
+            composeETHLockbox.authorizedPortals(
+                IOptimismPortal(payable(address(mockPortalDifferentConfig)))
+            )
+        );
+    }
+
 
     // ============ Lock Tests ============
 
@@ -72,6 +108,31 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
         vm.prank(address(mockPortal1));
         vm.expectRevert(); // ETHLockbox_Unauthorized
         composeETHLockbox.lockETH{value: 10 ether}();
+    }
+
+    function test_differentConfigPortal_canLockETH() public {
+        vm.prank(proxyAdminOwner);
+        composeETHLockbox.authorizePortal(
+            IOptimismPortal(payable(address(mockPortalDifferentConfig)))
+        );
+
+        vm.prank(address(mockPortalDifferentConfig));
+        composeETHLockbox.lockETH{value: 1 ether}();
+
+        assertEq(address(composeETHLockbox).balance, 1 ether);
+    }
+
+    function test_lockETH_differentConfig_rollupPaused_Works() public {
+        vm.prank(proxyAdminOwner);
+        composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortalDifferentConfig))));
+
+        vm.prank(guardian);
+        rollupSuperchainConfig.pause(address(mockPortalDifferentConfig));
+
+        vm.prank(address(mockPortalDifferentConfig));
+        composeETHLockbox.lockETH{value: 1 ether}();
+
+        assertEq(address(composeETHLockbox).balance, 1 ether);
     }
 
     // ============ Unlock Tests ============
@@ -110,6 +171,21 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
         composeETHLockbox.unlockETH(10 ether);
     }
 
+    function test_rollupPause_doesNotBlockLockETH_forDifferentConfigPortal() public {
+        vm.prank(proxyAdminOwner);
+        composeETHLockbox.authorizePortal(
+            IOptimismPortal(payable(address(mockPortalDifferentConfig)))
+        );
+
+        vm.prank(guardian);
+        rollupSuperchainConfig.pause(address(0));
+
+        vm.prank(address(mockPortalDifferentConfig));
+        composeETHLockbox.lockETH{value: 1 ether}();
+
+        assertEq(address(composeETHLockbox).balance, 1 ether);
+    }
+
     // ============ Pause Tests ============
 
     function test_paused_returnsFalseInitially() public view {
@@ -131,6 +207,35 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
         composeSuperchainConfig.unpause(address(0));
         
         assertFalse(composeETHLockbox.paused());
+    }
+
+    function test_portalStillAuthorized_evenIfRollupPaused() public {
+        vm.prank(proxyAdminOwner);
+        composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortalDifferentConfig))));
+
+        vm.prank(guardian);
+        rollupSuperchainConfig.pause(address(mockPortalDifferentConfig));
+
+        assertTrue(composeETHLockbox.authorizedPortals(
+            IOptimismPortal(payable(address(mockPortalDifferentConfig)))
+        ));
+    }
+
+    function test_composePause_blocksUnlock_forDifferentConfigPortal() public {
+        vm.prank(proxyAdminOwner);
+        composeETHLockbox.authorizePortal(
+            IOptimismPortal(payable(address(mockPortalDifferentConfig)))
+        );
+
+        vm.prank(address(mockPortalDifferentConfig));
+        composeETHLockbox.lockETH{value: 10 ether}();
+
+        vm.prank(guardian);
+        composeSuperchainConfig.pause(address(0));
+
+        vm.prank(address(mockPortalDifferentConfig));
+        vm.expectRevert();
+        composeETHLockbox.unlockETH(5 ether);
     }
 
     // ============ Multiple Portal Tests ============

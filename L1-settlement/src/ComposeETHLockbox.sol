@@ -33,9 +33,6 @@ contract ComposeETHLockbox is ProxyAdminOwnedBase, Initializable, Reinitializabl
     /// @notice Thrown when attempting to unlock ETH from the lockbox through a withdrawal transaction.
     error ETHLockbox_NoWithdrawalTransactions();
 
-    /// @notice Thrown when any authorized portal has a different SuperchainConfig.
-    error ETHLockbox_DifferentSuperchainConfig();
-
     /// @notice Emitted when ETH is locked in the lockbox by an authorized portal.
     /// @param portal The address of the portal that locked the ETH.
     /// @param amount The amount of ETH locked.
@@ -227,10 +224,6 @@ contract ComposeETHLockbox is ProxyAdminOwnedBase, Initializable, Reinitializabl
         // Check that the portal has the same proxy admin owner.
         // NOTE: Disabled for multi-owner architecture where Compose and rollup have different ProxyAdmin owners
         // _assertSharedProxyAdminOwner(address(_portal));
-
-        // Check that the portal has the same superchain config.
-        // CRITICAL: All portals must use the shared Compose SuperchainConfig for coordinated pausing
-        if (_portal.superchainConfig() != superchainConfig()) revert ETHLockbox_DifferentSuperchainConfig();
 
         // Authorize the portal.
         authorizedPortals[_portal] = true;

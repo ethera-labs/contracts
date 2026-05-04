@@ -4,6 +4,9 @@ out = "out"
 libs = ["lib"]
 auto_detect_solc = true
 solc_version = "0.8.15"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
 fs_permissions = [
     { access = "read", path = "./networks.toml" },
     { access = "read", path = "./out" },
@@ -24,6 +27,7 @@ remappings = [
     "src/dispute/=lib/optimism/packages/contracts-bedrock/src/dispute/",
     "src/cannon/=lib/optimism/packages/contracts-bedrock/src/cannon/",
     "src/universal/=lib/optimism/packages/contracts-bedrock/src/universal/",
+    "src/vendor/=lib/optimism/packages/contracts-bedrock/src/vendor/",
     "interfaces/=lib/optimism/packages/contracts-bedrock/interfaces/",
     "@lib-keccak/=lib/lib-keccak/contracts/lib/",
     "@optimism/lib/solady/=lib/optimism/packages/contracts-bedrock/lib/solady/"

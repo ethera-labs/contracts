@@ -1,0 +1,58 @@
+{
+  "rollup-a-stage": {
+    "l2ChainId": 77777,
+    "composeNetwork": "hoodi-stage",
+    "migration_block": 0,
+    "timestamp": "2025-11-02T01:54:51Z",
+    "migrator": "0x0000000000000000000000000000000000000000",
+    "contracts": {
+      "SystemConfig": {
+        "proxyAddress": "0xdb356c4ed9a9ef4833eea2a8052668b05eafc7d7",
+        "oldImplAddress": "",
+        "newImplAddress": "0x6a63273ac6c23cb6467f36ab97a56563f9a31373",
+        "constructorArgs": [],
+        "upgradeData": "0x028f4e470000000000000000000000000000000000000000000000000000000000012fd1000000000000000000000000a82a244eb5bd467ab281443f5f96a25b8396541e",
+        "txHash": "",
+        "migrationBlock": 0
+      },
+      "OptimismPortal": {
+        "proxyAddress": "0xB8b340D118A807BA7E6abce111eb3816152072d1",
+        "oldImplAddress": "0xB443Da3e07052204A02d630a8933dAc05a0d6fB4",
+        "newImplAddress": "0xf57f0389330e644f22ea018d660b117c7a2c6119",
+        "constructorArgs": [
+          "604800"
+        ],
+        "upgradeData": "",
+        "txHash": "",
+        "migrationBlock": 0
+      },
+      "L1CrossDomainMessenger": {
+        "proxyAddress": "0xf705129966C71b94534a7E84bCc52edefe1e6706",
+        "oldImplAddress": "",
+        "newImplAddress": "0x7fd2e80ed6347a8f4663aa9acf2e063b06d22739",
+        "constructorArgs": [],
+        "upgradeData": "0x0900f010000000000000000000000000db356c4ed9a9ef4833eea2a8052668b05eafc7d7",
+        "txHash": "",
+        "migrationBlock": 0
+      },
+      "L1StandardBridge": {
+        "proxyAddress": "0xE6456C49bAe7FF20Bee0D01948d6d0F82dD821E9",
+        "oldImplAddress": "",
+        "newImplAddress": "0x840666339daceb427ace1a38c8cd1ee39ceed09f",
+        "constructorArgs": [],
+        "upgradeData": "0x0900f010000000000000000000000000db356c4ed9a9ef4833eea2a8052668b05eafc7d7",
+        "txHash": "",
+        "migrationBlock": 0
+      },
+      "L1ERC721Bridge": {
+        "proxyAddress": "rollup-a-stage0",
+        "oldImplAddress": "",
+        "newImplAddress": "0xe17a11c57f8b649df8a16caf9ea84242157bb953",
+        "constructorArgs": [],
+        "upgradeData": "",
+        "txHash": "",
+        "migrationBlock": 0
+      }
+    }
+  }
+}

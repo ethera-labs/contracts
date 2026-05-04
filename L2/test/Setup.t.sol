@@ -6,14 +6,11 @@ import { Mailbox } from "@ssv/src/core/Mailbox.sol";
 import { PingPong } from "@ssv/src/core/PingPong.sol";
 import { BridgeableToken } from "@ssv/src/core/BridgeableToken.sol";
 import { Bridge } from "@ssv/src/core/Bridge.sol";
-import { StagedMailbox } from "@ssv/src/core/StagedMailbox.sol";
-
 contract Setup is Test {
     Mailbox public mailbox;
     PingPong public pingPong;
     BridgeableToken public myToken;
     Bridge public bridge;
-    StagedMailbox public stagedMailbox;
 
     address public immutable DEPLOYER = makeAddr("Deployer");
     address public immutable COORDINATOR = makeAddr("Coordinator");
@@ -32,12 +29,9 @@ contract Setup is Test {
         pingPong = new PingPong(address(mailbox));
         bridge = new Bridge(address(mailbox));
         myToken = new BridgeableToken(address(bridge));
-        stagedMailbox = new StagedMailbox(address(COORDINATOR));
-
         vm.label(address(mailbox), "Mailbox");
         vm.label(address(pingPong), "PingPong");
         vm.label(address(myToken), "MyToken");
         vm.label(address(bridge), "Bridge");
-        vm.label(address(stagedMailbox), "StagedMailbox");
     }
 }

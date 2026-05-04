@@ -19,6 +19,7 @@ import { ComposeAnchorStateRegistry } from "src/ComposeAnchorStateRegistry.sol";
 import { ComposeDisputeGame } from "src/ComposeDisputeGame.sol";
 import { ComposeETHLockbox } from "src/ComposeETHLockbox.sol";
 import { MockVerifier } from "test/mock/MockVerifier.sol";
+import { MockSuperchainConfig } from "test/mock/MockSuperchainConfig.sol";
 
 /// @title ComposeSetup
 /// @notice Base test setup for Compose tests. Uses vm.etch pattern to avoid bytecode bloat.
@@ -31,6 +32,7 @@ abstract contract ComposeSetup is Test {
     // Deployed contracts - populated during setUp
     IProxyAdmin internal composeProxyAdmin;
     ISuperchainConfig internal composeSuperchainConfig;
+    ISuperchainConfig internal rollupSuperchainConfig;
     IDisputeGameFactory internal composeDisputeGameFactory;
     IComposeAnchorStateRegistry internal composeAnchorStateRegistry;
     ComposeETHLockbox internal composeETHLockbox;
@@ -108,7 +110,10 @@ abstract contract ComposeSetup is Test {
         composeAnchorStateRegistry = output.composeAnchorStateRegistryProxy();
         composeETHLockbox = output.composeETHLockboxProxy();
         composeDisputeGameImpl = output.composeDisputeGameImpl();
-        
+
+        // Different superchain config
+        rollupSuperchainConfig = ISuperchainConfig(address(new MockSuperchainConfig()));
+
         // Get mock verifier from deployment (sp1_verifier in test deployment)
         mockSP1Verifier = MockVerifier(address(composeDisputeGameImpl.PROOF_VERIFIER()));
         

@@ -168,7 +168,7 @@ See the [LICENSE](LICENSE) file for the complete license text.
 
 This project incorporates several open-source libraries with permissive licenses (MIT/Apache-2.0) that are compatible with GPL-3.0-or-later. For detailed information about third-party dependencies and their licenses, see [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
-## Contributing
+### Important for new deployments
 
 We welcome contributions from the community! Whether you're fixing bugs, improving documentation, or proposing new features, your input is valued.
 
