@@ -172,6 +172,8 @@ just l1-migrate-v3 chain-100003 true
 just l1-migrate-v3 chain-100003
 ```
 
+> **Note:** Step 2 sets `l2ChainId` on `SystemConfig` from the `chainId` field in `config.json`. Ensure `rollups.<name>.chainId` is correct before running.
+
 ### What the script does
 
 | Step | Action | Signer |

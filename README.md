@@ -152,9 +152,11 @@ SAVE_DEPLOY_OUTPUT=true just l1-deploy-shared
 
 ### L1 Migration (existing OP Stack rollup)
 
+> **Prerequisite:** `l1.deployed.*` in `config.json` must be filled in (run `just l1-deploy-shared` first, or obtain the cluster operator's `config.json`).
+
 ```sh
 # 1. Add your rollup under rollups in config.json with l1.* addresses
-# 2. Set ROLLUP_NAME + keys + RPC_URL in .env
+# 2. Set ROLLUP_NAME + ROLLUP_OWNER_KEY + PROXY_ADMIN_OWNER_KEY + RPC_URL in .env
 
 just l1-migrate-v4 chain-100003        # live
 just l1-migrate-v4 chain-100003 true   # dry run
