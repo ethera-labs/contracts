@@ -101,6 +101,9 @@ abstract contract ComposeSetup is Test {
         testInput.set(testInput.disputeGameFinalityDelaySeconds.selector, uint256(1800));
         testInput.set(testInput.proofMaturityDelaySeconds.selector, uint256(3600));
 
+        vm.setEnv("PROXY_ADMIN_OWNER_KEY", "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+        vm.setEnv("GUARDIAN_KEY", "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+
         console.log("ComposeSetup: Deploying shared infrastructure...");
 
         // Deploy shared infrastructure using the script
