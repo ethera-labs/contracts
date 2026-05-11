@@ -112,7 +112,7 @@ The test should assert custody and supply at every step: L1 lockbox balances, L2
 
 **Category:** Scripts
 **Priority:** P0
-**Status:** Pending
+**Status:** Done - Fixed in PR#2
 
 **Detail:**
 Use [ethera-deployments](https://github.com/ethera-labs/ethera-deployments) as the target registry and output format. Current agreed structure:
@@ -151,7 +151,7 @@ The existing `L1-settlement` justfile is a good start for recipes. The L2 side a
 
 **Category:** Scripts
 **Priority:** P0
-**Status:** Pending
+**Status:** Done - Fixed in PR#2
 
 **Detail:**
 `L1-settlement/forge test` currently fails because `networks.toml` is missing. Tests should not require a developer-private production config to run.
@@ -225,7 +225,7 @@ SSV's fork testing pattern is useful as a process reference: validate deployed s
 
 **Category:** Scripts
 **Priority:** P1
-**Status:** Pending
+**Status:** Done - all the addresses and commit references are tracked in `ethera-deployments` repo
 
 **Detail:**
 Deployment information is split between `ethera-contracts` JSON outputs and `ethera-deployments` TOML/ABI files. The team has agreed to use `ethera-deployments`, so contract scripts and tests should treat it as the canonical source of truth per environment.
@@ -539,7 +539,7 @@ This reduces operational risk and gives reviewers a stable artifact instead of a
 
 **Category:** Quality
 **Priority:** P2
-**Status:** Pending
+**Status:** Done - Fixed in PR#2
 
 **Detail:**
 Some test functions live under `test/setup/*.sol`, especially `ComposeL2IntegrationSetup.sol` and `ComposeIntegrationSetup.sol`. Setup contracts should ideally provide fixtures/helpers, while actual test contracts should live in clearly named test files.
