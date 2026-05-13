@@ -26,9 +26,8 @@ import {L2ComposeBridge} from "src/l2/bridge/L2ComposeBridge.sol";
 ///   initial_eth_seed     optional — wei to fund ComposeETHLiquidity (0 = skip)
 ///
 /// Env:
-///   ROLLUP_NAME          selects section in rollups.toml
+///   ROLLUP_NAME          selects section in config.json
 ///   DEPLOYER_KEY         private key for broadcast
-///   L1_COMPOSE_BRIDGE    optional — if set, wires L2Bridge.setOtherBridge
 contract DeployComposeBridge is Script {
     CetFactory public cetFactory;
     ComposeETHLiquidity public ethLiquidity;
@@ -43,7 +42,7 @@ contract DeployComposeBridge is Script {
         address l2Xdm = RollupConfig.l2Xdm();
         bytes32 salt = RollupConfig.create2Salt();
         uint256 initialSeed = RollupConfig.initialEthSeed();
-        address l1Bridge = vm.envOr("L1_COMPOSE_BRIDGE", address(0));
+        address l1Bridge = RollupConfig.l1ComposeBridge();
 
         console.log("========================================");
         console.log("Deploy Compose Bridge (L2)");
@@ -93,7 +92,7 @@ contract DeployComposeBridge is Script {
             l2Bridge.setOtherBridge(l1Bridge);
             console.log("\n[5]  l2Bridge.setOtherBridge                  :", l1Bridge);
         } else {
-            console.log("\n[5]  L1_COMPOSE_BRIDGE unset - run wire-bridge later.");
+            console.log("\n[5]  l1.composeBridge unset in config.json - run wire-bridge later.");
         }
 
         vm.stopBroadcast();

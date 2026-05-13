@@ -7,21 +7,23 @@ import { console2 as console } from "forge-std/console2.sol";
 import { ComposeL1Bridge } from "src/l1/ComposeL1Bridge.sol";
 import { ComposeETHLockbox } from "src/l1/ComposeETHLockbox.sol";
 import { IOptimismPortal2 } from "interfaces/L1/IOptimismPortal2.sol";
+import { ComposeConfig } from "script/l1/libraries/ComposeConfig.sol";
+import { RollupConfig } from "script/l2/libraries/RollupConfig.sol";
 
 /// @title WireComposeBridges (L1 side)
-/// Env:
-///   PROXY_ADMIN_OWNER   owner that can call setOtherBridge / authorizePortal
-///   L1_COMPOSE_BRIDGE   ComposeL1Bridge proxy address on this L1
-///   L2_COMPOSE_BRIDGE   L2ComposeBridge address on the paired L2
-///   COMPOSE_PORTAL      ComposePortal proxy address on this L1
-///   COMPOSE_ETH_LOCKBOX ComposeETHLockbox proxy address (shared across rollups)
+/// Config (config.json via ROLLUP_NAME):
+///   l1.proxyAdminOwner                  owner that can call setOtherBridge / authorizePortal
+///   rollups.<name>.l1.composeBridge     ComposeL1Bridge proxy address on this L1
+///   rollups.<name>.l2ComposeBridge      L2ComposeBridge address on the paired L2
+///   rollups.<name>.l1.portalProxy       ComposePortal proxy address on this L1
+///   l1.deployed.ethLockbox              ComposeETHLockbox proxy address (shared across rollups)
 contract WireComposeBridges is Script {
     function run() external {
-        address owner       = vm.envAddress("PROXY_ADMIN_OWNER");
-        address l1Bridge    = vm.envAddress("L1_COMPOSE_BRIDGE");
-        address l2Bridge    = vm.envAddress("L2_COMPOSE_BRIDGE");
-        address portal      = vm.envAddress("COMPOSE_PORTAL");
-        address ethLockbox  = vm.envAddress("COMPOSE_ETH_LOCKBOX");
+        address owner       = ComposeConfig.proxyAdminOwner();
+        address l1Bridge    = RollupConfig.l1ComposeBridge();
+        address l2Bridge    = RollupConfig.l2ComposeBridge();
+        address portal      = RollupConfig.portalProxy();
+        address ethLockbox  = ComposeConfig.ethLockbox();
 
         vm.startBroadcast(owner);
 

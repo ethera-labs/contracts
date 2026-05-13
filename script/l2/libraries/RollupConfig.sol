@@ -112,6 +112,14 @@ library RollupConfig {
         return vm.parseJsonAddress(jsonContent(), rollupL1Key("l1ERC721Bridge"));
     }
 
+    function l1ComposeBridge() internal view returns (address) {
+        return vm.parseJsonAddress(jsonContent(), rollupL1Key("composeBridge"));
+    }
+
+    function l2ComposeBridge() internal view returns (address) {
+        return vm.parseJsonAddress(jsonContent(), rollupKey("l2ComposeBridge"));
+    }
+
     // ============ Validation ============
 
     function validateConfig() internal view {

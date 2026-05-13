@@ -10,18 +10,17 @@ import {L2ComposeBridge} from "src/l2/bridge/L2ComposeBridge.sol";
 /// @title WireL2ComposeBridge
 /// @notice Wire L2ComposeBridge to its L1 counterpart after both sides are deployed.
 ///
-/// Config (rollups.toml via ROLLUP_NAME):
-///   owner              owner of the L2ComposeBridge
+/// Config (config.json via ROLLUP_NAME):
+///   rollups.<name>.l2ComposeBridge     L2ComposeBridge address on this L2
+///   rollups.<name>.l1.composeBridge    ComposeL1Bridge proxy address on the paired L1
 ///
 /// Env:
-///   ROLLUP_NAME        selects section in rollups.toml
+///   ROLLUP_NAME        selects rollup in config.json
 ///   DEPLOYER_KEY       private key for broadcast
-///   L2_COMPOSE_BRIDGE  L2ComposeBridge address on this L2
-///   L1_COMPOSE_BRIDGE  ComposeL1Bridge proxy address on the paired L1
 contract WireL2ComposeBridge is Script {
     function run() external {
-        address l2Bridge = vm.envAddress("L2_COMPOSE_BRIDGE");
-        address l1Bridge = vm.envAddress("L1_COMPOSE_BRIDGE");
+        address l2Bridge = RollupConfig.l2ComposeBridge();
+        address l1Bridge = RollupConfig.l1ComposeBridge();
 
         address current = L2ComposeBridge(payable(l2Bridge)).otherBridge();
         if (current == l1Bridge) {
