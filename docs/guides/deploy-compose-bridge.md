@@ -291,10 +291,6 @@ just l1-wire-bridges chain-200005
 just l2-wire-bridge chain-100003              # set RPC_URL to L2 first
 just l2-wire-bridge chain-200005
 
-# Optional: deploy DEX tokens
-just l2-deploy-weth chain-100003
-just l2-deploy-dex-tokens chain-100003
-just l2-deploy-all chain-100003
 ```
 
 ---

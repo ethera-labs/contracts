@@ -16,7 +16,7 @@ Smart contracts for the Compose Network: a shared settlement layer that lets mul
 contracts/
 ├── src/
 │   ├── l1/            # ComposeDisputeGame, ComposeAnchorStateRegistry, ComposeETHLockbox, ComposePortal
-│   └── l2/            # Bridge, Mailbox, PingPong, DEX tokens, Swapper
+│   └── l2/            # CETFactory, L2ComposeBridge, ComposeETHLiquidity, ComposeL2ToL2Bridge
 ├── test/
 │   ├── l1/            # L1 contract tests + setup harness
 │   └── l2/            # L2 contract tests
@@ -27,8 +27,6 @@ contracts/
 │   │   └── libraries/ # ComposeConfig (reads config.json)
 │   └── l2/
 │       ├── bridge/    # DeployComposeBridge, WireL2ComposeBridge
-│       ├── core/      # DeployContracts
-│       ├── dex/       # DeployWETH, DeployDEXTokens, DeploySwapper, FundSwapper
 │       └── libraries/ # RollupConfig (reads config.json)
 ├── lib/               # Foundry dependencies (submodules)
 ├── config.json        # All config: shared L1 infra + per-rollup addresses
@@ -170,8 +168,6 @@ just l1-migrate-v3 chain-100003        # V3 rollup (full upgrade)
 # 2. Set ROLLUP_NAME + DEPLOYER_KEY + RPC_URL in .env
 
 just l2-deploy-bridge chain-100003
-just l2-deploy-weth chain-100003
-just l2-deploy-dex-tokens chain-100003
 ```
 
 ---
@@ -209,8 +205,6 @@ L2 (each rollup)
 │  ┌─────────────────────────────┐
 │  │  Per-rollup                 │
 │  │  L2ComposeBridge            │
-│  │  WETH9, SSVMintable,        │
-│  │  USDCMintable, Swapper      │
 │  └─────────────────────────────┘
 ```
 
@@ -238,12 +232,6 @@ just l1-wire-bridges
 just l2-deploy-bridge [rollup]
 just l2-deploy-l2l2-bridge [rollup]
 just l2-wire-bridge [rollup]
-just l2-deploy-core [rollup]
-just l2-deploy-weth [rollup]
-just l2-deploy-dex-tokens [rollup]
-just l2-deploy-swapper [rollup]
-just l2-fund-swapper <swapper> <weth> <usdc> <ssv>
-just l2-deploy-all [rollup]    # bridge + weth + dex-tokens in sequence
 ```
 
 ---

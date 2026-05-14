@@ -42,11 +42,6 @@ just l1-migrate-v3 chain-100003        # V3 rollup (full upgrade)
 # 2. Set ROLLUP_NAME + DEPLOYER_KEY + RPC_URL in .env
 
 just l2-deploy-bridge chain-100003
-just l2-deploy-weth chain-100003
-just l2-deploy-dex-tokens chain-100003
-just l2-deploy-swapper chain-100003    # needs WETH_ADDRESS, USDC_ADDRESS, SSV_ADDRESS in .env
-# or all at once:
-just l2-deploy-all chain-100003
 ```
 
 ## L2 — wire after L1 bridge deploy
@@ -75,6 +70,3 @@ just l2-wire-bridge chain-100003
 | `RPC_URL` | All live deploy recipes | `https://...` |
 | `L2_COMPOSE_BRIDGE` | `l2-wire-bridge` | `0x...` |
 | `L1_COMPOSE_BRIDGE` | `l2-wire-bridge`, `l2-deploy-bridge` | `0x...` |
-| `WETH_ADDRESS` | `l2-deploy-swapper` | `0x...` |
-| `USDC_ADDRESS` | `l2-deploy-swapper` | `0x...` |
-| `SSV_ADDRESS` | `l2-deploy-swapper` | `0x...` |

@@ -61,39 +61,6 @@ l2-wire-bridge rollup="test":
     ROLLUP_NAME={{rollup}} forge script script/l2/bridge/WireL2ComposeBridge.s.sol --tc WireL2ComposeBridge --rpc-url $RPC_URL --broadcast --slow
 
 # ============================================================
-# L2 core  (reads config.json via ROLLUP_NAME)
-# ============================================================
-
-l2-deploy-core rollup="test":
-    ROLLUP_NAME={{rollup}} forge script script/l2/core/DeployContracts.s.sol --tc DeployContracts --rpc-url $RPC_URL --broadcast --slow
-
-# ============================================================
-# L2 DEX  (reads config.json via ROLLUP_NAME)
-# ============================================================
-
-l2-deploy-weth rollup="test":
-    ROLLUP_NAME={{rollup}} forge script script/l2/dex/DeployWETH.s.sol --tc DeployWETH --rpc-url $RPC_URL --broadcast --slow
-
-l2-deploy-dex-tokens rollup="test":
-    ROLLUP_NAME={{rollup}} forge script script/l2/dex/DeployDEXTokens.s.sol --tc DeployDEXTokens --rpc-url $RPC_URL --broadcast --slow
-
-l2-deploy-swapper rollup="test":
-    ROLLUP_NAME={{rollup}} forge script script/l2/dex/DeploySwapper.s.sol --tc DeploySwapper --rpc-url $RPC_URL --broadcast --slow
-
-# Fund swapper with default amounts (100 WETH, 1000 USDC, 1000 SSV)
-l2-fund-swapper swapper weth usdc ssv:
-    forge script script/l2/dex/FundSwapper.s.sol --tc FundSwapper --sig "runDefault(address,address,address,address)" {{swapper}} {{weth}} {{usdc}} {{ssv}} --rpc-url $RPC_URL --broadcast --slow
-
-# ============================================================
-# L2 full deploy sequence per rollup (wires after bridge deploy)
-# ============================================================
-
-l2-deploy-all rollup="test":
-    just l2-deploy-bridge {{rollup}}
-    just l2-deploy-weth {{rollup}}
-    just l2-deploy-dex-tokens {{rollup}}
-
-# ============================================================
 # Fork runner  (spins up anvil fork, runs recipe, tears down)
 # ============================================================
 
