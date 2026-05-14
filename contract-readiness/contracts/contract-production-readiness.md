@@ -168,7 +168,7 @@ This should be fixed before using the L1 test result as a readiness signal.
 
 **Category:** Security
 **Priority:** P0
-**Status:** Pending
+**Status:** Done - Fixed in PR#2
 
 **Detail:**
 `ComposeL2OutputOracle` is still present but deprecated in favor of dispute games. The repo also still has older bridge/mailbox/demo artifacts and L2 deployment metadata around `Mailbox`, `StagedMailbox`, `Bridge`, `BridgeableToken`, and `PingPong`.
