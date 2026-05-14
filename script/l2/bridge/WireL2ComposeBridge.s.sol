@@ -16,7 +16,7 @@ import {L2ComposeBridge} from "src/l2/bridge/L2ComposeBridge.sol";
 ///
 /// Env:
 ///   ROLLUP_NAME        selects rollup in config.json
-///   DEPLOYER_KEY       private key for broadcast
+///   ROLLUP_OWNER_KEY       private key for broadcast
 contract WireL2ComposeBridge is Script {
     function run() external {
         address l2Bridge = RollupConfig.l2ComposeBridge();
@@ -29,7 +29,7 @@ contract WireL2ComposeBridge is Script {
         }
         if (current != address(0)) revert("L2Bridge.otherBridge mismatch");
 
-        vm.startBroadcast(vm.envUint("DEPLOYER_KEY"));
+        vm.startBroadcast(vm.envUint("ROLLUP_OWNER_KEY"));
         L2ComposeBridge(payable(l2Bridge)).setOtherBridge(l1Bridge);
         vm.stopBroadcast();
 

@@ -19,6 +19,11 @@ Phase 2 — L2 bridge per rollup
   → CetFactory, UniversalBridgeMailbox, ComposeETHLiquidity,
     ComposeL2ToL2Bridge, L2ComposeBridge
   → wire to L1 bridge via just l2-wire-bridge
+
+Phase 3 — Enable ERC-20 bridging (per rollup, after l1-migrate-v4)
+  just l1-upgrade-compose-bridge <rollup>
+  → ComposePortal, ComposeL1Bridge, ComposeERC20Lockbox (shared)
+  → wire bridges via just l1-wire-bridges / just l2-wire-bridge
 ```
 
 ---
@@ -82,11 +87,11 @@ RPC_URL=https://<l1-rpc>
 ### 3. Deploy
 
 ```sh
-SAVE_DEPLOY_OUTPUT=true just l1-deploy-shared
+just l1-deploy-shared
 ```
 
-`SAVE_DEPLOY_OUTPUT=true` writes the deployed addresses back into `config.json` under `l1.deployed`
-automatically. After a successful run, `config.json` will have:
+Deployed addresses are written back into `config.json` under `l1.deployed` automatically. After a
+successful run, `config.json` will have:
 
 ```json
 {
@@ -98,11 +103,14 @@ automatically. After a successful run, `config.json` will have:
       "disputeGameFactory": "0x...",
       "anchorStateRegistry": "0x...",
       "ethLockbox": "0x...",
-      "composeDisputeGame": "0x..."
+      "composeDisputeGame": "0x...",
+      "erc20LockboxProxy": "0x0000000000000000000000000000000000000000"
     }
   }
 }
 ```
+
+`erc20LockboxProxy` starts as zero and is filled in automatically during Phase 3.
 
 ### What gets deployed
 
@@ -131,7 +139,6 @@ and message routing.
   "rollups": {
     "chain-100003": {
       "chainId": "100003",
-      "rpcUrl": "https://...",
       "owner": "0x...",
       "coordinator": "0x...",
       "l1ChainId": "11155111",
@@ -152,15 +159,16 @@ and message routing.
 | `l2Xdm` | L2 CrossDomainMessenger predeploy (`0x4200...0007` on all OP Stack chains) |
 | `create2Salt` | bytes32 salt — **must be identical across all rollups in the cluster** |
 | `initialEthSeed` | Optional wei to pre-fund `ComposeETHLiquidity` at deploy time (0 = skip) |
-| `rpcUrl` | Informational only — scripts use `$RPC_URL` from `.env`, not this field |
 
 ### 2. Set .env
 
 ```
-ROLLUP_NAME=chain-100003
-DEPLOYER_KEY=0x<deployer-private-key>
+ROLLUP_OWNER_KEY=0x<rollup-owner-private-key>
 RPC_URL=https://<l2-rpc>
 ```
+
+`RPC_URL` must point at the **L2** RPC for this step. Scripts always read from `$RPC_URL` — there
+is no per-rollup RPC field read from config.
 
 If the L1 `ComposeL1Bridge` is already deployed, also set:
 ```
@@ -208,72 +216,53 @@ value is set to a different address.
 Deploys `ComposeL1Bridge` on L1, upgrades the portal to `ComposePortal`, and wires both sides.
 Requires Phase 1 (shared infra) and the rollup migration (`just l1-migrate-v4`) to be complete.
 
-### 1. Create the upgrade config file
+All configuration is read from `config.json` via `ROLLUP_NAME` — no separate config file needed.
 
-Create a JSON file (e.g. `upgrade-compose-bridge-chain-100003.json`). Keys **must** be in alphabetical order:
+### 1. Ensure rollup section in config.json has L1 addresses filled in
 
 ```json
 {
-  "composeAdminOwner": "0x...",
-  "composeProxyAdmin": "0x...",
-  "erc20LockboxProxy": "0x0000000000000000000000000000000000000000",
-  "l1Xdm": "0x...",
-  "portalProxy": "0x...",
-  "rollupAdminOwner": "0x...",
-  "rollupProxyAdmin": "0x...",
-  "superchainConfig": "0x...",
-  "systemConfig": "0x..."
+  "rollups": {
+    "chain-100003": {
+      "l1": {
+        "portalProxy": "0x...",
+        "proxyAdmin": "0x...",
+        "proxyAdminOwner": "0x...",
+        "systemConfig": "0x...",
+        "l1CrossDomainMessenger": "0x..."
+      }
+    }
+  }
 }
 ```
 
-| Field | Source |
-|---|---|
-| `composeAdminOwner` | `l1.proxyAdminOwner` in `config.json` |
-| `composeProxyAdmin` | `l1.deployed.proxyAdmin` in `config.json` |
-| `erc20LockboxProxy` | Zero address to deploy a new `ComposeERC20Lockbox`; or pass an existing proxy |
-| `l1Xdm` | `rollups.<name>.l1.l1CrossDomainMessenger` in `config.json` |
-| `portalProxy` | `rollups.<name>.l1.portalProxy` in `config.json` |
-| `rollupAdminOwner` | `rollups.<name>.l1.proxyAdminOwner` in `config.json` |
-| `rollupProxyAdmin` | `rollups.<name>.l1.proxyAdmin` in `config.json` |
-| `superchainConfig` | `l1.deployed.superchainConfig` in `config.json` |
-| `systemConfig` | `rollups.<name>.l1.systemConfig` in `config.json` |
+### 2. Set .env
 
-### 2. Run the upgrade
+```
+ROLLUP_OWNER_KEY=0x<rollup-proxy-admin-owner-private-key>
+PROXY_ADMIN_OWNER_KEY=0x<compose-proxy-admin-owner-private-key>
+RPC_URL=https://<l1-rpc>
+```
+
+### 3. Run the upgrade
 
 ```sh
-just l1-upgrade-compose-bridge upgrade-compose-bridge-chain-100003.json true   # dry run
-just l1-upgrade-compose-bridge upgrade-compose-bridge-chain-100003.json        # live
+just l1-upgrade-compose-bridge chain-100003 true   # dry run first
+just l1-upgrade-compose-bridge chain-100003        # live
 ```
 
-This script broadcasts as two addresses (`rollupAdminOwner` and `composeAdminOwner`). Both
-private keys must be available. Pass them with `--private-key` if running forge directly:
+The script broadcasts as two addresses (`rollupAdminOwner` and `composeAdminOwner`), reading both
+keys from `.env`.
+
+**Important for multi-rollup clusters:** run rollups in sequence, not in parallel. The first rollup
+deploys `ComposeERC20Lockbox` and saves its address to `config.json` under
+`l1.deployed.erc20LockboxProxy`. Subsequent rollups read that address and reuse the same lockbox
+automatically — no manual copy step required.
+
+### 4. Wire L1 and L2 bridges
 
 ```sh
-forge script script/l1/deploy/UpgradeToComposeBridge.s.sol --sig "run(string,bool)" upgrade-compose-bridge-chain-100003.json false --private-key $ROLLUP_OWNER_KEY --private-key $PROXY_ADMIN_OWNER_KEY --rpc-url $RPC_URL --broadcast --slow
-```
-
-The script prints the deployed `ComposeL1Bridge` proxy address on completion.
-
-### 3. Wire L1 and L2 bridges
-
-Set in `.env`:
-
-```
-L1_COMPOSE_BRIDGE=0x<ComposeL1Bridge proxy from step 2>
-L2_COMPOSE_BRIDGE=0x<L2ComposeBridge from just l2-deploy-bridge>
-COMPOSE_PORTAL=0x<portalProxy>
-COMPOSE_ETH_LOCKBOX=0x<l1.deployed.ethLockbox>
-```
-
-Then wire the L1 side:
-
-```sh
-just l1-wire-bridges
-```
-
-And the L2 side (if not already wired during `just l2-deploy-bridge`):
-
-```sh
+just l1-wire-bridges chain-100003
 just l2-wire-bridge chain-100003
 ```
 
@@ -283,27 +272,28 @@ just l2-wire-bridge chain-100003
 
 ```sh
 # Phase 1 — L1 shared infra (once per cluster)
-# Fill l1.* fields in config.json, set PROXY_ADMIN_OWNER_KEY + GUARDIAN_KEY + RPC_URL
+# Fill l1.* fields in config.json, set PROXY_ADMIN_OWNER_KEY + GUARDIAN_KEY + RPC_URL (L1)
 just l1-deploy-shared
 
 # Phase 2 — L2 bridge (once per rollup)
-# Add rollup section to config.json, set ROLLUP_NAME + DEPLOYER_KEY + RPC_URL
+# Add rollup section to config.json, set DEPLOYER_KEY + RPC_URL (L2)
 just l2-deploy-bridge chain-100003
-
-# Wire L2 bridge to L1 (if L1_COMPOSE_BRIDGE was not set above)
-# Set L2_COMPOSE_BRIDGE + L1_COMPOSE_BRIDGE in .env
-just l2-wire-bridge chain-100003
+just l2-deploy-bridge chain-200005
 
 # Phase 3 — ERC-20 bridging (once per rollup, after l1-migrate-v4)
-# Create upgrade-compose-bridge-chain-100003.json (see Phase 3 above)
-just l1-upgrade-compose-bridge upgrade-compose-bridge-chain-100003.json
-# Set L1_COMPOSE_BRIDGE + L2_COMPOSE_BRIDGE + COMPOSE_PORTAL + COMPOSE_ETH_LOCKBOX in .env
-just l1-wire-bridges
+# Set ROLLUP_OWNER_KEY + PROXY_ADMIN_OWNER_KEY + RPC_URL (L1)
+just l1-upgrade-compose-bridge chain-100003   # deploys ComposeERC20Lockbox, saves to config.json
+just l1-upgrade-compose-bridge chain-200005   # reuses lockbox from config.json automatically
+
+# Wire bridges
+just l1-wire-bridges chain-100003
+just l1-wire-bridges chain-200005
+just l2-wire-bridge chain-100003              # set RPC_URL to L2 first
+just l2-wire-bridge chain-200005
 
 # Optional: deploy DEX tokens
 just l2-deploy-weth chain-100003
 just l2-deploy-dex-tokens chain-100003
-# Or all at once:
 just l2-deploy-all chain-100003
 ```
 
@@ -345,4 +335,4 @@ cast call <CET_FACTORY> "authorizedBridges(address)(bool)" <L2L2_BRIDGE> --rpc-u
 | `Aggregation vkey not set` | `aggregationVkey` missing or zero | Add correct SP1 vkey |
 | `L2Bridge.otherBridge mismatch` | `otherBridge` already set to a different address | Check which L1 bridge was used at deploy time |
 | CREATE2 address collision | `create2Salt` differs from other rollups in cluster | Use the same `create2Salt` across all rollups |
-| `SAVE_DEPLOY_OUTPUT` not set | Deployed addresses not written to config.json | Re-run with `SAVE_DEPLOY_OUTPUT=true` prefix |
+| Wrong chain on L2 deploy | `RPC_URL` still pointing at L1 | Update `RPC_URL` in `.env` to the L2 RPC before running `l2-deploy-bridge` |

@@ -27,7 +27,7 @@ import {L2ComposeBridge} from "src/l2/bridge/L2ComposeBridge.sol";
 ///
 /// Env:
 ///   ROLLUP_NAME          selects section in config.json
-///   DEPLOYER_KEY         private key for broadcast
+///   ROLLUP_OWNER_KEY         private key for broadcast
 contract DeployComposeBridge is Script {
     CetFactory public cetFactory;
     ComposeETHLiquidity public ethLiquidity;
@@ -56,7 +56,7 @@ contract DeployComposeBridge is Script {
         console.log("  l1ComposeBridge  :", l1Bridge);
         console.log("  initialEthSeed   :", initialSeed);
 
-        vm.startBroadcast(vm.envUint("DEPLOYER_KEY"));
+        vm.startBroadcast(vm.envUint("ROLLUP_OWNER_KEY"));
 
         cetFactory = new CetFactory{salt: salt}(owner);
         console.log("\n[1a] CetFactory              :", address(cetFactory));
@@ -72,6 +72,10 @@ contract DeployComposeBridge is Script {
 
         l2Bridge = new L2ComposeBridge(l2Xdm, address(cetFactory), l1ChainId);
         console.log("\n[2]  L2ComposeBridge          :", address(l2Bridge));
+
+        string memory l2BridgeKey = string.concat('.rollups["', RollupConfig.rollupName(), '"].l2ComposeBridge');
+        vm.writeJson(vm.toString(address(l2Bridge)), "config.json", l2BridgeKey);
+        console.log("     saved to config.json [%s]", l2BridgeKey);
 
         cetFactory.authorizeBridge(address(l2l2Bridge));
         cetFactory.authorizeBridge(address(l2Bridge));

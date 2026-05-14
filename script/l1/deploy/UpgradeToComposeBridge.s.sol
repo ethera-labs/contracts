@@ -22,17 +22,18 @@ import { IOptimismPortal2 } from "interfaces/L1/IOptimismPortal2.sol";
 import { ISystemConfig } from "interfaces/L1/ISystemConfig.sol";
 
 import { Features } from "src/L1/SystemConfig.sol";
+import { ComposeConfig } from "script/l1/libraries/ComposeConfig.sol";
+import { RollupConfig } from "script/l2/libraries/RollupConfig.sol";
 
 /// @title UpgradeToComposeBridge
 /// @notice Per-rollup L1 upgrade: swap OptimismPortal impl for ComposePortal, deploy
 ///         ComposeL1Bridge proxy, wire shared ComposeERC20Lockbox. Assumes rollup already
 ///         migrated to Compose V4 (Interop portal + shared ETHLockbox + Compose ASR/DGF).
 contract UpgradeToComposeBridge is Script {
-    /// @dev Must be in alphabetical order for vm.parseJson.
     struct Cfg {
         address composeAdminOwner;
         address composeProxyAdmin;
-        address erc20LockboxProxy; // 0 = deploy inline
+        address erc20LockboxProxy;
         address l1Xdm;
         address portalProxy;
         address rollupAdminOwner;
@@ -50,9 +51,9 @@ contract UpgradeToComposeBridge is Script {
     address public bridgeProxy;
     address public erc20Lockbox;
 
-    function run(string memory configPath, bool _dryRun) external {
+    function run(bool _dryRun) external {
         dryRun = _dryRun;
-        _loadConfig(configPath);
+        _loadConfig();
 
         _banner();
 
@@ -103,10 +104,10 @@ contract UpgradeToComposeBridge is Script {
         uint256 delay = IOptimismPortal2(payable(cfg.portalProxy)).proofMaturityDelaySeconds();
         console.log("  proofMaturityDelay:", delay);
 
-        _broadcastStart(cfg.rollupAdminOwner);
+        _broadcastRollup();
         composePortalImpl = address(new ComposePortal(delay));
         composeL1BridgeImpl = address(new ComposeL1Bridge());
-        _broadcastStop();
+        vm.stopBroadcast();
 
         console.log("  composePortalImpl   :", composePortalImpl);
         console.log("  composeL1BridgeImpl :", composeL1BridgeImpl);
@@ -120,7 +121,7 @@ contract UpgradeToComposeBridge is Script {
             return;
         }
 
-        _broadcastStart(cfg.composeAdminOwner);
+        _broadcastCompose();
         address impl = address(new ComposeERC20Lockbox());
         Proxy proxy = new Proxy(cfg.composeProxyAdmin);
         IProxyAdmin(cfg.composeProxyAdmin).upgradeAndCall(
@@ -131,11 +132,14 @@ contract UpgradeToComposeBridge is Script {
                 (ISuperchainConfig(cfg.superchainConfig), new IComposePortal[](0))
             )
         );
-        _broadcastStop();
+        vm.stopBroadcast();
 
         erc20Lockbox = address(proxy);
         console.log("  deployed impl       :", impl);
         console.log("  deployed proxy      :", erc20Lockbox);
+
+        vm.writeJson(vm.toString(erc20Lockbox), "config.json", ".l1.deployed.erc20LockboxProxy");
+        console.log("  saved to config.json [l1.deployed.erc20LockboxProxy]");
     }
 
     function _step3_upgradePortalAndInit() internal {
@@ -155,22 +159,22 @@ contract UpgradeToComposeBridge is Script {
             (IComposeERC20Lockbox(erc20Lockbox))
         );
 
-        _broadcastStart(cfg.rollupAdminOwner);
+        _broadcastRollup();
         IProxyAdmin(cfg.rollupProxyAdmin).upgradeAndCall(
             payable(cfg.portalProxy),
             composePortalImpl,
             initData
         );
-        _broadcastStop();
+        vm.stopBroadcast();
 
         console.log("  portal upgraded -> ComposePortal, initializeCompose called");
     }
 
     function _step4_deployBridgeProxy() internal {
         console.log("\n[4] Deploy bridge proxy");
-        _broadcastStart(cfg.rollupAdminOwner);
+        _broadcastRollup();
         Proxy p = new Proxy(cfg.rollupProxyAdmin);
-        _broadcastStop();
+        vm.stopBroadcast();
         bridgeProxy = address(p);
         console.log("  bridgeProxy:", bridgeProxy);
     }
@@ -189,13 +193,13 @@ contract UpgradeToComposeBridge is Script {
             )
         );
 
-        _broadcastStart(cfg.rollupAdminOwner);
+        _broadcastRollup();
         IProxyAdmin(cfg.rollupProxyAdmin).upgradeAndCall(
             payable(bridgeProxy),
             composeL1BridgeImpl,
             initData
         );
-        _broadcastStop();
+        vm.stopBroadcast();
 
         console.log("  bridge initialized (otherBridge=0, wire via setOtherBridge later)");
     }
@@ -210,9 +214,9 @@ contract UpgradeToComposeBridge is Script {
             return;
         }
 
-        _broadcastStart(cfg.rollupAdminOwner);
+        _broadcastRollup();
         ComposePortal(payable(cfg.portalProxy)).authorizeBridge(bridgeProxy);
-        _broadcastStop();
+        vm.stopBroadcast();
 
         console.log("  authorized");
     }
@@ -227,9 +231,9 @@ contract UpgradeToComposeBridge is Script {
             return;
         }
 
-        _broadcastStart(cfg.composeAdminOwner);
+        _broadcastCompose();
         ComposeERC20Lockbox(erc20Lockbox).authorizePortal(IComposePortal(cfg.portalProxy));
-        _broadcastStop();
+        vm.stopBroadcast();
 
         console.log("  authorized");
     }
@@ -267,31 +271,38 @@ contract UpgradeToComposeBridge is Script {
     // Helpers
     // ---------------------------------------------------------------------------------------------
 
-    function _loadConfig(string memory configPath) internal {
-        string memory json = vm.readFile(configPath);
-        cfg = abi.decode(vm.parseJson(json), (Cfg));
+    function _loadConfig() internal {
+        cfg.composeAdminOwner = ComposeConfig.proxyAdminOwner();
+        cfg.composeProxyAdmin = ComposeConfig.proxyAdmin();
+        cfg.erc20LockboxProxy = ComposeConfig.erc20LockboxProxy();
+        cfg.l1Xdm = RollupConfig.l1CrossDomainMessenger();
+        cfg.portalProxy = RollupConfig.portalProxy();
+        cfg.rollupAdminOwner = RollupConfig.l1ProxyAdminOwner();
+        cfg.rollupProxyAdmin = RollupConfig.l1ProxyAdmin();
+        cfg.superchainConfig = ComposeConfig.superchainConfig();
+        cfg.systemConfig = RollupConfig.systemConfig();
     }
 
-    function _broadcastStart(address who) internal {
+    function _broadcastRollup() internal {
         if (dryRun) {
-            console.log("    [DRY RUN] broadcaster:", who);
-            vm.startPrank(who, who);
+            vm.startPrank(cfg.rollupAdminOwner, cfg.rollupAdminOwner);
             return;
         }
-        vm.startBroadcast(who);
+        vm.startBroadcast(vm.envOr("ROLLUP_OWNER_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)));
     }
 
-    function _broadcastStop() internal {
+    function _broadcastCompose() internal {
         if (dryRun) {
-            vm.stopPrank();
+            vm.startPrank(cfg.composeAdminOwner, cfg.composeAdminOwner);
             return;
         }
-        vm.stopBroadcast();
+        vm.startBroadcast(vm.envOr("PROXY_ADMIN_OWNER_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)));
     }
 
     function _banner() internal view {
         console.log("============================================");
         console.log("Upgrade to Compose Bridge");
+        console.log("  rollup             :", RollupConfig.rollupName());
         console.log("============================================");
         if (dryRun) console.log("[DRY RUN MODE]");
         console.log("  portalProxy        :", cfg.portalProxy);
@@ -308,7 +319,11 @@ contract UpgradeToComposeBridge is Script {
         );
     }
 
-    function _summary() internal view {
+    function _summary() internal {
+        string memory rollupKey = string.concat('.rollups["', RollupConfig.rollupName(), '"].l1.composeBridge');
+        vm.writeJson(vm.toString(bridgeProxy), "config.json", rollupKey);
+        console.log("  saved to config.json [%s]", rollupKey);
+
         console.log("\n============================================");
         console.log("Done");
         console.log("============================================");

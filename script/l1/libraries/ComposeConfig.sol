@@ -109,6 +109,14 @@ library ComposeConfig {
         return addr;
     }
 
+    function erc20LockboxProxy() internal view returns (address) {
+        try vm.parseJsonAddress(jsonContent(), ".l1.deployed.erc20LockboxProxy") returns (address addr) {
+            return addr;
+        } catch {
+            return address(0);
+        }
+    }
+
     function l1ChainId() internal view returns (uint256) {
         return vm.parseJsonUint(jsonContent(), ".l1.deployed.l1ChainId");
     }
