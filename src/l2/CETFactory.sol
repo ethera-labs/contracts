@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.18;
 
-import { ComposableERC20 } from "src/l2/bridge/ComposableERC20.sol";
-import { ICETFactory } from "src/l2/bridge/interfaces/ICETFactory.sol";
+import { ComposableERC20 } from "./ComposableERC20.sol";
+import { ICETFactory } from "src/l2/interfaces/ICETFactory.sol";
 
 /// @title CetFactory
 /// @notice CREATE2 deployer for `ComposableERC20` wrapper tokens. The deployed address depends

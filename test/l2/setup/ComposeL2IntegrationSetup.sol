@@ -4,15 +4,15 @@ pragma solidity ^0.8.18;
 import { Test } from "forge-std/Test.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import { CetFactory } from "src/l2/bridge/CETFactory.sol";
-import { ComposableERC20 } from "src/l2/bridge/ComposableERC20.sol";
-import { UniversalBridgeMailbox } from "src/l2/bridge/UniversalBridgeMailbox.sol";
-import { ComposeETHLiquidity } from "src/l2/bridge/ComposeETHLiquidity.sol";
-import { ComposeL2ToL2Bridge } from "src/l2/bridge/ComposeL2ToL2Bridge.sol";
-import { L2ComposeBridge } from "src/l2/bridge/L2ComposeBridge.sol";
+import { CetFactory } from "../../../src/l2/CETFactory.sol";
+import { ComposableERC20 } from "../../../src/l2/ComposableERC20.sol";
+import { UniversalBridgeMailbox } from "../../../src/l2/UniversalBridgeMailbox.sol";
+import { ComposeETHLiquidity } from "../../../src/l2/ComposeETHLiquidity.sol";
+import { ComposeL2ToL2Bridge } from "../../../src/l2/ComposeL2ToL2Bridge.sol";
+import { L2ComposeBridge } from "../../../src/l2/L2ComposeBridge.sol";
 
-import { IUniversalBridgeMailbox } from "src/l2/bridge/interfaces/IUniversalBridgeMailbox.sol";
-import { IComposableERC20 } from "src/l2/bridge/interfaces/IComposableERC20.sol";
+import { IUniversalBridgeMailbox } from "src/l2/interfaces/IUniversalBridgeMailbox.sol";
+import { IComposableERC20 } from "src/l2/interfaces/IComposableERC20.sol";
 
 import { MockL2CrossDomainMessenger } from "test/l2/mock/MockL2CrossDomainMessenger.sol";
 

@@ -5,11 +5,11 @@ import {Script} from "forge-std/Script.sol";
 import {console2 as console} from "forge-std/console2.sol";
 
 import {RollupConfig} from "script/l2/libraries/RollupConfig.sol";
-import {CetFactory} from "src/l2/bridge/CETFactory.sol";
-import {ComposeETHLiquidity} from "src/l2/bridge/ComposeETHLiquidity.sol";
-import {UniversalBridgeMailbox} from "src/l2/bridge/UniversalBridgeMailbox.sol";
-import {ComposeL2ToL2Bridge} from "src/l2/bridge/ComposeL2ToL2Bridge.sol";
-import {L2ComposeBridge} from "src/l2/bridge/L2ComposeBridge.sol";
+import {CetFactory} from "../../../src/l2/CETFactory.sol";
+import {ComposeETHLiquidity} from "../../../src/l2/ComposeETHLiquidity.sol";
+import {UniversalBridgeMailbox} from "../../../src/l2/UniversalBridgeMailbox.sol";
+import {ComposeL2ToL2Bridge} from "../../../src/l2/ComposeL2ToL2Bridge.sol";
+import {L2ComposeBridge} from "../../../src/l2/L2ComposeBridge.sol";
 
 /// @title DeployComposeBridge
 /// @notice One-shot L2 deploy + wiring for the Compose bridge stack.

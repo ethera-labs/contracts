@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import { IETHLiquidity } from "src/l2/bridge/interfaces/external/IETHLiquidity.sol";
+import { IETHLiquidity } from "src/l2/interfaces/external/IETHLiquidity.sol";
 
 /// @title ComposeETHLiquidity
 /// @notice Minimal ETHLiquidity-shaped pool for the Compose L2↔L2 bridge on chains where the

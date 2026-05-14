@@ -2,14 +2,14 @@
 pragma solidity ^0.8.18;
 
 import {IComposeL2ToL2Bridge} from "./interfaces/IComposeL2ToL2Bridge.sol";
-import { ICETFactory } from "src/l2/bridge/interfaces/ICETFactory.sol";
-import {IComposableERC20} from "src/l2/bridge/interfaces/IComposableERC20.sol";
+import { ICETFactory } from "src/l2/interfaces/ICETFactory.sol";
+import {IComposableERC20} from "src/l2/interfaces/IComposableERC20.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {IERC20Metadata} from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
-import {IETHLiquidity} from "src/l2/bridge/interfaces/external/IETHLiquidity.sol";
-import {IUniversalBridgeMailbox} from "src/l2/bridge/interfaces/IUniversalBridgeMailbox.sol";
+import {IETHLiquidity} from "src/l2/interfaces/external/IETHLiquidity.sol";
+import {IUniversalBridgeMailbox} from "src/l2/interfaces/IUniversalBridgeMailbox.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 

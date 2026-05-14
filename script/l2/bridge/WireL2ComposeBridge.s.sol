@@ -5,7 +5,7 @@ import {Script} from "forge-std/Script.sol";
 import {console2 as console} from "forge-std/console2.sol";
 
 import {RollupConfig} from "script/l2/libraries/RollupConfig.sol";
-import {L2ComposeBridge} from "src/l2/bridge/L2ComposeBridge.sol";
+import {L2ComposeBridge} from "../../../src/l2/L2ComposeBridge.sol";
 
 /// @title WireL2ComposeBridge
 /// @notice Wire L2ComposeBridge to its L1 counterpart after both sides are deployed.

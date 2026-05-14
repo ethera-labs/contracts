@@ -2,8 +2,8 @@
 pragma solidity ^0.8.18;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { IERC7802 } from "src/l2/bridge/interfaces/IERC7802.sol";
-import { IComposableERC20 } from "src/l2/bridge/interfaces/IComposableERC20.sol";
+import { IERC7802 } from "src/l2/interfaces/IERC7802.sol";
+import { IComposableERC20 } from "src/l2/interfaces/IComposableERC20.sol";
 
 /// @title ComposableERC20
 /// @notice ERC7802-compliant CET. Constructor takes only identity args (remoteAsset,

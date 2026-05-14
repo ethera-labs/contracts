@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.18;
 
-import { IUniversalBridgeMailbox } from "src/l2/bridge/interfaces/IUniversalBridgeMailbox.sol";
+import { IUniversalBridgeMailbox } from "src/l2/interfaces/IUniversalBridgeMailbox.sol";
 
 contract UniversalBridgeMailbox is IUniversalBridgeMailbox {
 

@@ -5,8 +5,8 @@ import { IERC165 } from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-import { ICETFactory } from "src/l2/bridge/interfaces/ICETFactory.sol";
-import { IComposableERC20 } from "src/l2/bridge/interfaces/IComposableERC20.sol";
+import { ICETFactory } from "src/l2/interfaces/ICETFactory.sol";
+import { IComposableERC20 } from "src/l2/interfaces/IComposableERC20.sol";
 
 /// @notice Minimal L2 CrossDomainMessenger surface used here.
 interface IL2CrossDomainMessenger {
