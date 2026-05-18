@@ -1,24 +1,24 @@
 [submodule "L1-settlement/lib/forge-std"]
-	path = L1-settlement/lib/forge-std
+	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
 [submodule "L1-settlement/lib/optimism"]
-	path = L1-settlement/lib/optimism
+	path = lib/optimism
 	url = https://github.com/ethereum-optimism/optimism
 	branch = op-deployer/v0.4.5
 [submodule "L1-settlement/lib/lib-keccak"]
-	path = L1-settlement/lib/lib-keccak
+	path = lib/lib-keccak
 	url = https://github.com/ethereum-optimism/lib-keccak
 [submodule "L1-settlement/lib/openzeppelin-contracts"]
-	path = L1-settlement/lib/openzeppelin-contracts
+	path = lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
 [submodule "L1-settlement/lib/openzeppelin-contracts-upgradeable"]
-	path = L1-settlement/lib/openzeppelin-contracts-upgradeable
+	path = lib/openzeppelin-contracts-upgradeable
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable
 [submodule "L1-settlement/lib/sp1-contracts"]
-	path = L1-settlement/lib/sp1-contracts
+	path = lib/sp1-contracts
 	url = https://github.com/zobront/sp1-contracts
 [submodule "L1-settlement/lib/solady"]
-	path = L1-settlement/lib/solady
+	path = lib/solady
 	url = https://github.com/Vectorized/solady
 [submodule "L2/lib/forge-std"]
 	path = L2/lib/forge-std
