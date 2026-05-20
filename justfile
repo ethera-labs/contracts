@@ -48,7 +48,7 @@ l1-upgrade-bridge-impl rollup:
 
 # rollup = key under rollups in config.json (e.g. rollupA, rollupB)
 l1-wire-bridges rollup:
-    ROLLUP_NAME={{rollup}} forge script script/l1/deploy/WireComposeBridges.s.sol --tc WireComposeBridges --private-key $PROXY_ADMIN_OWNER_KEY --rpc-url $RPC_URL --broadcast --slow
+    ROLLUP_NAME={{rollup}} forge script script/l1/deploy/WireComposeBridges.s.sol --tc WireComposeBridges --rpc-url $RPC_URL --broadcast --slow
 
 # ============================================================
 # L2 bridge  (reads config.json via ROLLUP_NAME)
