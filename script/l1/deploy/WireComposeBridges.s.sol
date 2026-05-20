@@ -12,22 +12,25 @@ import { RollupConfig } from "script/l2/libraries/RollupConfig.sol";
 
 /// @title WireComposeBridges (L1 side)
 /// Config (config.json via ROLLUP_NAME):
-///   l1.proxyAdminOwner                  owner that can call setOtherBridge / authorizePortal
+///   rollups.<name>.l1.proxyAdminOwner   owner of the per-rollup ProxyAdmin (calls setOtherBridge)
+///   l1.proxyAdminOwner                  Compose-level admin (calls authorizePortal if needed)
 ///   rollups.<name>.l1.composeBridge     ComposeL1Bridge proxy address on this L1
 ///   rollups.<name>.l2ComposeBridge      L2ComposeBridge address on the paired L2
 ///   rollups.<name>.l1.portalProxy       ComposePortal proxy address on this L1
 ///   l1.deployed.ethLockbox              ComposeETHLockbox proxy address (shared across rollups)
+///
+/// Env:
+///   ROLLUP_OWNER_KEY       private key of rollups.<name>.l1.proxyAdminOwner
+///   PROXY_ADMIN_OWNER_KEY  private key of l1.proxyAdminOwner (only needed if ETHLockbox not yet authorized)
 contract WireComposeBridges is Script {
     function run() external {
-        address owner       = ComposeConfig.proxyAdminOwner();
-        address l1Bridge    = RollupConfig.l1ComposeBridge();
-        address l2Bridge    = RollupConfig.l2ComposeBridge();
-        address portal      = RollupConfig.portalProxy();
-        address ethLockbox  = ComposeConfig.ethLockbox();
+        address l1Bridge   = RollupConfig.l1ComposeBridge();
+        address l2Bridge   = RollupConfig.l2ComposeBridge();
+        address portal     = RollupConfig.portalProxy();
+        address ethLockbox = ComposeConfig.ethLockbox();
 
-        vm.startBroadcast(owner);
-
-        // [1] L1 bridge -> L2 bridge
+        // [1] L1 bridge -> L2 bridge — signed by per-rollup ProxyAdmin owner
+        vm.startBroadcast(vm.envUint("ROLLUP_OWNER_KEY"));
         address current = ComposeL1Bridge(payable(l1Bridge)).otherBridge();
         if (current == address(0)) {
             ComposeL1Bridge(payable(l1Bridge)).setOtherBridge(l2Bridge);
@@ -35,21 +38,24 @@ contract WireComposeBridges is Script {
         } else if (current == l2Bridge) {
             console.log("\n[1] L1Bridge.otherBridge already set: skip");
         } else {
-            revert("L1Bridge.otherBridge mismatch");
+            ComposeL1Bridge(payable(l1Bridge)).updateOtherBridge(l2Bridge);
+            console.log("\n[1] L1Bridge.updateOtherBridge      :", l2Bridge);
+            console.log("    (replaced", current, ")");
         }
+        vm.stopBroadcast();
 
-        // [2] ETHLockbox <- ComposePortal
+        // [2] ETHLockbox <- ComposePortal — signed by Compose admin, skipped if already done
         bool alreadyAuth = ComposeETHLockbox(payable(ethLockbox))
             .authorizedPortals(IOptimismPortal2(payable(portal)));
-        if (!alreadyAuth) {
+        if (alreadyAuth) {
+            console.log("[2] ETHLockbox already authorized   : skip");
+        } else {
+            vm.startBroadcast(vm.envUint("PROXY_ADMIN_OWNER_KEY"));
             ComposeETHLockbox(payable(ethLockbox))
                 .authorizePortal(IOptimismPortal2(payable(portal)));
+            vm.stopBroadcast();
             console.log("[2] ETHLockbox.authorizePortal      :", portal);
-        } else {
-            console.log("[2] ETHLockbox already authorized   : skip");
         }
-
-        vm.stopBroadcast();
 
         console.log("\n========================================");
         console.log("Done (L1 wiring)");

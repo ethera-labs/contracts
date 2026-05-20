@@ -30,6 +30,12 @@ contract DeployAndWireComposeBridge is Script {
     UniversalBridgeMailbox public mailbox;
     ComposeL2ToL2Bridge public l2l2Bridge;
 
+    function _deploy(bytes32 salt, bytes memory init) internal returns (address addr) {
+        (bool ok,) = CREATE2_FACTORY.call(abi.encodePacked(salt, init));
+        require(ok, "create2 deploy failed");
+        addr = computeCreate2Address(salt, keccak256(init), CREATE2_FACTORY);
+    }
+
     function run() external {
         address owner = RollupConfig.owner();
         address coordinator = RollupConfig.coordinator();
@@ -46,10 +52,11 @@ contract DeployAndWireComposeBridge is Script {
 
         vm.startBroadcast(vm.envUint("DEPLOYER_KEY"));
 
-        cetFactory = new CetFactory{salt: salt}(owner);
-        mailbox = new UniversalBridgeMailbox{salt: salt}(coordinator, owner);
-        ethLiquidity = new ComposeETHLiquidity{salt: salt}(owner);
-        l2l2Bridge = new ComposeL2ToL2Bridge{salt: salt}(address(mailbox), address(cetFactory), address(ethLiquidity));
+        cetFactory = CetFactory(_deploy(salt, type(CetFactory).creationCode));
+        cetFactory.initialize(owner);
+        mailbox = UniversalBridgeMailbox(_deploy(salt, abi.encodePacked(type(UniversalBridgeMailbox).creationCode, abi.encode(coordinator, owner))));
+        ethLiquidity = ComposeETHLiquidity(payable(_deploy(salt, abi.encodePacked(type(ComposeETHLiquidity).creationCode, abi.encode(owner)))));
+        l2l2Bridge = ComposeL2ToL2Bridge(payable(_deploy(salt, abi.encodePacked(type(ComposeL2ToL2Bridge).creationCode, abi.encode(address(mailbox), address(cetFactory), address(ethLiquidity))))));
 
         console.log("\n[1] CetFactory             :", address(cetFactory));
         console.log("    UniversalBridgeMailbox  :", address(mailbox));

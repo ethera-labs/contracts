@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 interface ICETFactory {
+    error AlreadyInitialized();
     error DeploymentFailed();
     error OnlyBridge();
     error OnlyDeployer();

@@ -43,9 +43,12 @@ l1-upgrade-compose-portal rollup proofMaturityDelay dryRun="false":
 l1-upgrade-compose-bridge rollup dryRun="false":
     ROLLUP_NAME={{rollup}} forge script script/l1/deploy/UpgradeToComposeBridge.s.sol --tc UpgradeToComposeBridge --sig "run(bool)" {{dryRun}} --rpc-url $RPC_URL --broadcast --slow
 
+l1-upgrade-bridge-impl rollup:
+    ROLLUP_NAME={{rollup}} forge script script/l1/deploy/UpgradeL1BridgeImpl.s.sol --tc UpgradeL1BridgeImpl --rpc-url $RPC_URL --broadcast --slow
+
 # rollup = key under rollups in config.json (e.g. rollupA, rollupB)
 l1-wire-bridges rollup:
-    ROLLUP_NAME={{rollup}} forge script script/l1/deploy/WireComposeBridges.s.sol --tc WireComposeBridges --private-key $PROXY_ADMIN_OWNER_KEY --rpc-url $RPC_URL --broadcast --slow
+    ROLLUP_NAME={{rollup}} forge script script/l1/deploy/WireComposeBridges.s.sol --tc WireComposeBridges --rpc-url $RPC_URL --broadcast --slow
 
 # ============================================================
 # L2 bridge  (reads config.json via ROLLUP_NAME)

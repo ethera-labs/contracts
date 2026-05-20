@@ -9,7 +9,7 @@ import { ICETFactory } from "src/l2/interfaces/ICETFactory.sol";
 ///         ONLY on `(remoteAsset, remoteChainID)` — metadata is applied post-deploy so it
 ///         cannot shift the address.
 contract CetFactory is ICETFactory {
-    address public immutable deployer;
+    address public deployer;
     mapping(address => bool) public authorizedBridges;
     address[] public bridgeList;
 
@@ -18,7 +18,11 @@ contract CetFactory is ICETFactory {
         _;
     }
 
-    constructor(address _deployer) {
+    constructor() {}
+
+    /// @notice One-shot post-deploy initializer. Must be called before authorizeBridge.
+    function initialize(address _deployer) external {
+        if (deployer != address(0)) revert AlreadyInitialized();
         if (_deployer == address(0)) revert ZeroAddress();
         deployer = _deployer;
     }

@@ -141,7 +141,8 @@ contract ComposeL2IntegrationSetup is Test {
 
         vm.startPrank(owner);
 
-        cetFactory   = new CetFactory(owner);
+        cetFactory   = new CetFactory();
+        cetFactory.initialize(owner);
         mailbox      = new UniversalBridgeMailbox(coordinator, owner);
         ethLiquidity = new ComposeETHLiquidity(owner);
 
