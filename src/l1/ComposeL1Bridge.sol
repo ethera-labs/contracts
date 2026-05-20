@@ -192,6 +192,15 @@ contract ComposeL1Bridge is Initializable, ProxyAdminOwnedBase, ReinitializableB
         emit OtherBridgeSet(_otherBridge);
     }
 
+    /// @notice Owner-controlled update for `otherBridge`. Use when the L2 bridge is redeployed
+    ///         at a new address after initial wiring.
+    function updateOtherBridge(address _otherBridge) external {
+        _assertOnlyProxyAdminOwner();
+        if (_otherBridge == address(0)) revert ComposeBridge_ZeroAddress();
+        otherBridge = _otherBridge;
+        emit OtherBridgeSet(_otherBridge);
+    }
+
     /// @notice Only allow EOAs to call the function. Prevents contract wallets from accidentally
     ///         bridging into an aliased address on the other chain.
     modifier onlyEOA() {

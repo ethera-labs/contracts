@@ -35,7 +35,9 @@ contract WireComposeBridges is Script {
         } else if (current == l2Bridge) {
             console.log("\n[1] L1Bridge.otherBridge already set: skip");
         } else {
-            revert("L1Bridge.otherBridge mismatch");
+            ComposeL1Bridge(payable(l1Bridge)).updateOtherBridge(l2Bridge);
+            console.log("\n[1] L1Bridge.updateOtherBridge      :", l2Bridge);
+            console.log("    (replaced", current, ")");
         }
 
         // [2] ETHLockbox <- ComposePortal
