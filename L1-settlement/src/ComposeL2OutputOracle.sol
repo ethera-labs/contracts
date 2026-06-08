@@ -12,11 +12,11 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
     /// @notice The version of the initializer on the contract. Used for managing upgrades.
     uint8 public constant INITIALIZER_VERSION = 1;
 
-    /// @notice The number of the last superblock recorded in this contract.
-    uint256 public superBlockNumber;
+    /// @notice The version of the hash migration initializer.
+    uint8 public constant HASH_MIGRATION_VERSION = 2;
 
-    /// @notice Hash of each recorded superblock aggregation output.
-    mapping(uint256 => bytes32) private superblockHashes;
+    /// @notice The number of the last superblock recorded in this contract.
+    uint256 private superBlockNumber;
 
     /// @notice The verification key of the aggregation SP1 program.
     bytes32 public aggregationVkey;
@@ -28,6 +28,9 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
     address public owner;
 
     address public approvedProposer;
+
+    /// @notice Hash of each recorded superblock aggregation output.
+    mapping(uint256 => bytes32) private superblockHashes;
 
     constructor() {
         _disableInitializers();
@@ -45,6 +48,26 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
         owner = _initParams.owner;
 
         approvedProposer = _initParams.proposer;
+    }
+
+    /// @notice Seeds the current superblock hash after upgrading from a pre-hash implementation.
+    function initializeV2(uint256 expectedSuperblockNumber, bytes32 currentSuperblockHash)
+        external
+        reinitializer(HASH_MIGRATION_VERSION)
+    {
+        require(msg.sender == owner, "ComposeL2OutputOracle: only owner can initialize v2");
+
+        uint256 currentSuperBlockNumber = superBlockNumber;
+        if (expectedSuperblockNumber != currentSuperBlockNumber) {
+            revert UnexpectedSuperblockNumber(expectedSuperblockNumber, currentSuperBlockNumber);
+        }
+
+        if (currentSuperblockHash == bytes32(0)) {
+            revert EmptySuperblockHash();
+        }
+
+        superblockHashes[currentSuperBlockNumber] = currentSuperblockHash;
+        emit SuperblockHashSeeded(currentSuperBlockNumber, currentSuperblockHash);
     }
 
     /// @notice Accepts an outputRoot and the timestamp of the corresponding L2 block.
@@ -66,7 +89,7 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
     ///      - Proposers are expected to interact solely with trusted contracts.
     ///
     ///      As long as proposers avoid untrusted contracts, `tx.origin` is as secure as `msg.sender` in this context.
-    function proposeL2Output(bytes32 _outputRoot, bytes32 _l1Hash, bytes memory _extraData) external {
+    function proposeL2Output(bytes32 _outputRoot, bytes32, bytes memory _extraData) external {
         if (tx.origin != approvedProposer) {
             revert UnauthorizedProposer();
         }
@@ -78,9 +101,19 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
             revert EmptyOutputRoot();
         }
 
-        uint256 nextSuperBlockNumber = superBlockNumber + 1;
+        uint256 currentSuperBlockNumber = superBlockNumber;
+        uint256 nextSuperBlockNumber = currentSuperBlockNumber + 1;
         if (superBlockAggOutputs.superblockNumber != nextSuperBlockNumber) {
             revert InvalidSuperBlockNumber();
+        }
+
+        bytes32 expectedParentHash = superblockHashes[currentSuperBlockNumber];
+        if (expectedParentHash == bytes32(0)) {
+            revert MissingSuperblockHash(currentSuperBlockNumber);
+        }
+
+        if (superBlockAggOutputs.parentSuperblockBatchHash != expectedParentHash) {
+            revert InvalidParentSuperblockHash(expectedParentHash, superBlockAggOutputs.parentSuperblockBatchHash);
         }
 
         ISP1Verifier(verifier)

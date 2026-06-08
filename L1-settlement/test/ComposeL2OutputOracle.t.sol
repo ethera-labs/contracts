@@ -37,6 +37,8 @@ contract ComposeL2OutputOracleUnitTest is Test, Utils {
     bytes32 private constant L1_HASH = keccak256("l1_hash");
     bytes32 private constant PARENT_SUPERBLOCK_BATCH_HASH =
         bytes32(0x66cec985afe7e41f97a2f77c876fe9015be47f18baa0bd87c59795c52887df19);
+    bytes32 private constant WRONG_PARENT_SUPERBLOCK_BATCH_HASH =
+        bytes32(0x4fdbc8c6797a8acaabbe9a59947714776c9cf6f78611f61c17da8d3884af41c1);
     address private constant NEW_VERIFIER = address(0xABCD);
     bytes32 private constant NEW_VKEY = keccak256("new_vkey");
 
@@ -54,7 +56,6 @@ contract ComposeL2OutputOracleUnitTest is Test, Utils {
     }
 
     function test_initializer_configuresEverythingCorrectly() public {
-        assertEq(l2oo.superBlockNumber(), STARTING_BLOCK_NUMBER);
         assertEq(l2oo.latestSuperblockNumber(), STARTING_BLOCK_NUMBER);
         assertEq(l2oo.getSuperblockHash(STARTING_BLOCK_NUMBER), bytes32(0));
         assertEq(l2oo.aggregationVkey(), AGGREGATION_VKEY);
@@ -90,39 +91,67 @@ contract ComposeL2OutputOracleUnitTest is Test, Utils {
         l2oo.setVerifier(NEW_VERIFIER);
     }
 
-    function test_proposeL2Output_byApprovedProposer() public {
-        IComposeL2OutputOracleTypes.SuperblockAggregationOutputs memory superBlockAggOutputs =
-            IComposeL2OutputOracleTypes.SuperblockAggregationOutputs({
-                superblockNumber: STARTING_BLOCK_NUMBER + 1,
-                parentSuperblockBatchHash: PARENT_SUPERBLOCK_BATCH_HASH,
-                bootInfo: new IComposeL2OutputOracleTypes.BootInfoStruct[](0)
-            });
+    function test_initializeV2_byOwner() public {
+        vm.prank(OWNER);
+        l2oo.initializeV2(STARTING_BLOCK_NUMBER, PARENT_SUPERBLOCK_BATCH_HASH);
 
+        assertEq(l2oo.getSuperblockHash(STARTING_BLOCK_NUMBER), PARENT_SUPERBLOCK_BATCH_HASH);
+    }
+
+    function test_initializeV2_reverts_whenNotOwner() public {
+        vm.expectRevert("ComposeL2OutputOracle: only owner can initialize v2");
+        vm.prank(NON_APPROVED_PROPOSER);
+        l2oo.initializeV2(STARTING_BLOCK_NUMBER, PARENT_SUPERBLOCK_BATCH_HASH);
+    }
+
+    function test_initializeV2_reverts_zeroHash() public {
+        vm.expectRevert(IComposeL2OutputOracle.EmptySuperblockHash.selector);
+        vm.prank(OWNER);
+        l2oo.initializeV2(STARTING_BLOCK_NUMBER, bytes32(0));
+    }
+
+    function test_initializeV2_reverts_staleExpectedSuperblockNumber() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IComposeL2OutputOracle.UnexpectedSuperblockNumber.selector,
+                STARTING_BLOCK_NUMBER + 1,
+                STARTING_BLOCK_NUMBER
+            )
+        );
+        vm.prank(OWNER);
+        l2oo.initializeV2(STARTING_BLOCK_NUMBER + 1, PARENT_SUPERBLOCK_BATCH_HASH);
+    }
+
+    function test_initializeV2_reverts_whenCalledTwice() public {
+        _seedCurrentSuperblockHash(PARENT_SUPERBLOCK_BATCH_HASH);
+
+        vm.expectRevert("Initializable: contract is already initialized");
+        vm.prank(OWNER);
+        l2oo.initializeV2(STARTING_BLOCK_NUMBER, PARENT_SUPERBLOCK_BATCH_HASH);
+    }
+
+    function test_proposeL2Output_byApprovedProposer() public {
+        _seedCurrentSuperblockHash(PARENT_SUPERBLOCK_BATCH_HASH);
+        IComposeL2OutputOracleTypes.SuperblockAggregationOutputs memory superBlockAggOutputs =
+            _superblockOutputs(STARTING_BLOCK_NUMBER + 1, PARENT_SUPERBLOCK_BATCH_HASH);
         bytes memory extraData = abi.encode(superBlockAggOutputs, PROOF);
 
-        MockVerifier mockVerifier = MockVerifier(initParams.verifier);
-        mockVerifier.mockVerifyProof(true);
+        MockVerifier(initParams.verifier).mockVerifyProof(true);
 
         vm.prank(APPROVED_PROPOSER, APPROVED_PROPOSER);
         l2oo.proposeL2Output(OUTPUT_ROOT, L1_HASH, extraData);
 
-        assertEq(l2oo.superBlockNumber(), STARTING_BLOCK_NUMBER + 1);
         assertEq(l2oo.latestSuperblockNumber(), STARTING_BLOCK_NUMBER + 1);
         assertEq(l2oo.getSuperblockHash(STARTING_BLOCK_NUMBER + 1), keccak256(abi.encode(superBlockAggOutputs)));
     }
 
     function test_proposeL2Output_reverts_invalidSuperblockNumber() public {
+        _seedCurrentSuperblockHash(PARENT_SUPERBLOCK_BATCH_HASH);
         IComposeL2OutputOracleTypes.SuperblockAggregationOutputs memory superBlockAggOutputs =
-            IComposeL2OutputOracleTypes.SuperblockAggregationOutputs({
-                superblockNumber: STARTING_BLOCK_NUMBER + 2,
-                parentSuperblockBatchHash: PARENT_SUPERBLOCK_BATCH_HASH,
-                bootInfo: new IComposeL2OutputOracleTypes.BootInfoStruct[](0)
-            });
-
+            _superblockOutputs(STARTING_BLOCK_NUMBER + 2, PARENT_SUPERBLOCK_BATCH_HASH);
         bytes memory extraData = abi.encode(superBlockAggOutputs, PROOF);
 
-        MockVerifier mockVerifier = MockVerifier(initParams.verifier);
-        mockVerifier.mockVerifyProof(true);
+        MockVerifier(initParams.verifier).mockVerifyProof(true);
 
         vm.expectRevert(IComposeL2OutputOracle.InvalidSuperBlockNumber.selector);
         vm.prank(APPROVED_PROPOSER, APPROVED_PROPOSER);
@@ -130,13 +159,9 @@ contract ComposeL2OutputOracleUnitTest is Test, Utils {
     }
 
     function test_proposeL2Output_reverts_notApprovedProposer() public {
+        _seedCurrentSuperblockHash(PARENT_SUPERBLOCK_BATCH_HASH);
         IComposeL2OutputOracleTypes.SuperblockAggregationOutputs memory superBlockAggOutputs =
-            IComposeL2OutputOracleTypes.SuperblockAggregationOutputs({
-                superblockNumber: STARTING_BLOCK_NUMBER + 1,
-                parentSuperblockBatchHash: PARENT_SUPERBLOCK_BATCH_HASH,
-                bootInfo: new IComposeL2OutputOracleTypes.BootInfoStruct[](0)
-            });
-
+            _superblockOutputs(STARTING_BLOCK_NUMBER + 1, PARENT_SUPERBLOCK_BATCH_HASH);
         bytes memory extraData = abi.encode(superBlockAggOutputs, PROOF);
 
         vm.expectRevert(IComposeL2OutputOracle.UnauthorizedProposer.selector);
@@ -145,42 +170,109 @@ contract ComposeL2OutputOracleUnitTest is Test, Utils {
     }
 
     function test_proposeL2Output_reverts_zeroOutputRoot() public {
+        _seedCurrentSuperblockHash(PARENT_SUPERBLOCK_BATCH_HASH);
         IComposeL2OutputOracleTypes.SuperblockAggregationOutputs memory superBlockAggOutputs =
-            IComposeL2OutputOracleTypes.SuperblockAggregationOutputs({
-                superblockNumber: STARTING_BLOCK_NUMBER + 1,
-                parentSuperblockBatchHash: PARENT_SUPERBLOCK_BATCH_HASH,
-                bootInfo: new IComposeL2OutputOracleTypes.BootInfoStruct[](0)
-            });
-
+            _superblockOutputs(STARTING_BLOCK_NUMBER + 1, PARENT_SUPERBLOCK_BATCH_HASH);
         bytes memory extraData = abi.encode(superBlockAggOutputs, PROOF);
 
-        MockVerifier mockVerifier = MockVerifier(initParams.verifier);
-        mockVerifier.mockVerifyProof(true);
+        MockVerifier(initParams.verifier).mockVerifyProof(true);
 
         vm.expectRevert(IComposeL2OutputOracle.EmptyOutputRoot.selector);
         vm.prank(APPROVED_PROPOSER, APPROVED_PROPOSER);
         l2oo.proposeL2Output(bytes32(0), L1_HASH, extraData);
     }
 
-    function test_proposeL2Output_reverts_proofVerificationFails() public {
+    function test_proposeL2Output_reverts_missingSuperblockHash() public {
         IComposeL2OutputOracleTypes.SuperblockAggregationOutputs memory superBlockAggOutputs =
-            IComposeL2OutputOracleTypes.SuperblockAggregationOutputs({
-                superblockNumber: STARTING_BLOCK_NUMBER + 1,
-                parentSuperblockBatchHash: PARENT_SUPERBLOCK_BATCH_HASH,
-                bootInfo: new IComposeL2OutputOracleTypes.BootInfoStruct[](0)
-            });
-
+            _superblockOutputs(STARTING_BLOCK_NUMBER + 1, PARENT_SUPERBLOCK_BATCH_HASH);
         bytes memory extraData = abi.encode(superBlockAggOutputs, PROOF);
 
-        MockVerifier mockVerifier = MockVerifier(initParams.verifier);
-        mockVerifier.mockVerifyProof(false);
+        MockVerifier(initParams.verifier).mockVerifyProof(true);
 
-        vm.expectRevert("MockVerifier: Proof verification failed");
+        vm.expectRevert(
+            abi.encodeWithSelector(IComposeL2OutputOracle.MissingSuperblockHash.selector, STARTING_BLOCK_NUMBER)
+        );
         vm.prank(APPROVED_PROPOSER, APPROVED_PROPOSER);
         l2oo.proposeL2Output(OUTPUT_ROOT, L1_HASH, extraData);
     }
 
+    function test_proposeL2Output_reverts_invalidParentSuperblockHash() public {
+        _seedCurrentSuperblockHash(PARENT_SUPERBLOCK_BATCH_HASH);
+        IComposeL2OutputOracleTypes.SuperblockAggregationOutputs memory superBlockAggOutputs =
+            _superblockOutputs(STARTING_BLOCK_NUMBER + 1, WRONG_PARENT_SUPERBLOCK_BATCH_HASH);
+        bytes memory extraData = abi.encode(superBlockAggOutputs, PROOF);
+
+        MockVerifier(initParams.verifier).mockVerifyProof(true);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IComposeL2OutputOracle.InvalidParentSuperblockHash.selector,
+                PARENT_SUPERBLOCK_BATCH_HASH,
+                WRONG_PARENT_SUPERBLOCK_BATCH_HASH
+            )
+        );
+        vm.prank(APPROVED_PROPOSER, APPROVED_PROPOSER);
+        l2oo.proposeL2Output(OUTPUT_ROOT, L1_HASH, extraData);
+    }
+
+    function test_proposeL2Output_reverts_proofVerificationFails() public {
+        _seedCurrentSuperblockHash(PARENT_SUPERBLOCK_BATCH_HASH);
+        IComposeL2OutputOracleTypes.SuperblockAggregationOutputs memory superBlockAggOutputs =
+            _superblockOutputs(STARTING_BLOCK_NUMBER + 1, PARENT_SUPERBLOCK_BATCH_HASH);
+        bytes memory extraData = abi.encode(superBlockAggOutputs, PROOF);
+
+        MockVerifier(initParams.verifier).mockVerifyProof(false);
+
+        vm.expectRevert("MockVerifier: Proof verification failed");
+        vm.prank(APPROVED_PROPOSER, APPROVED_PROPOSER);
+        l2oo.proposeL2Output(OUTPUT_ROOT, L1_HASH, extraData);
+
+        assertEq(l2oo.latestSuperblockNumber(), STARTING_BLOCK_NUMBER);
+        assertEq(l2oo.getSuperblockHash(STARTING_BLOCK_NUMBER + 1), bytes32(0));
+    }
+
+    function test_proposeL2Output_acceptsTwoConsecutiveProposals() public {
+        _seedCurrentSuperblockHash(PARENT_SUPERBLOCK_BATCH_HASH);
+        MockVerifier(initParams.verifier).mockVerifyProof(true);
+
+        IComposeL2OutputOracleTypes.SuperblockAggregationOutputs memory firstSuperBlockAggOutputs =
+            _superblockOutputs(STARTING_BLOCK_NUMBER + 1, PARENT_SUPERBLOCK_BATCH_HASH);
+        bytes memory firstExtraData = abi.encode(firstSuperBlockAggOutputs, PROOF);
+
+        vm.prank(APPROVED_PROPOSER, APPROVED_PROPOSER);
+        l2oo.proposeL2Output(OUTPUT_ROOT, L1_HASH, firstExtraData);
+
+        bytes32 firstSuperblockHash = keccak256(abi.encode(firstSuperBlockAggOutputs));
+        IComposeL2OutputOracleTypes.SuperblockAggregationOutputs memory secondSuperBlockAggOutputs =
+            _superblockOutputs(STARTING_BLOCK_NUMBER + 2, firstSuperblockHash);
+        bytes memory secondExtraData = abi.encode(secondSuperBlockAggOutputs, PROOF);
+
+        vm.prank(APPROVED_PROPOSER, APPROVED_PROPOSER);
+        l2oo.proposeL2Output(OUTPUT_ROOT, L1_HASH, secondExtraData);
+
+        assertEq(l2oo.latestSuperblockNumber(), STARTING_BLOCK_NUMBER + 2);
+        assertEq(l2oo.getSuperblockHash(STARTING_BLOCK_NUMBER + 1), firstSuperblockHash);
+        assertEq(l2oo.getSuperblockHash(STARTING_BLOCK_NUMBER + 2), keccak256(abi.encode(secondSuperBlockAggOutputs)));
+    }
+
     function test_version_returnsCorrectVersion() public {
         assertEq(l2oo.version(), "0.0.1");
+    }
+
+    function _seedCurrentSuperblockHash(bytes32 superblockHash) internal {
+        vm.prank(OWNER);
+        l2oo.initializeV2(STARTING_BLOCK_NUMBER, superblockHash);
+    }
+
+    function _superblockOutputs(uint256 superblockNumber, bytes32 parentSuperblockBatchHash)
+        internal
+        pure
+        returns (IComposeL2OutputOracleTypes.SuperblockAggregationOutputs memory)
+    {
+        return IComposeL2OutputOracleTypes.SuperblockAggregationOutputs({
+            superblockNumber: superblockNumber,
+            parentSuperblockBatchHash: parentSuperblockBatchHash,
+            bootInfo: new IComposeL2OutputOracleTypes.BootInfoStruct[](0)
+        });
     }
 }

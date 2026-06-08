@@ -236,7 +236,7 @@ starting_superblock_number = 12345
 ```bash
 # For new deployment, should be 0
 # For migration, verify it matches source oracle:
-cast call $OLD_ORACLE "superBlockNumber()" --rpc-url $RPC_URL
+cast call $OLD_ORACLE "latestSuperblockNumber()" --rpc-url $RPC_URL
 ```
 
 ## DisputeGameFactory Parameters

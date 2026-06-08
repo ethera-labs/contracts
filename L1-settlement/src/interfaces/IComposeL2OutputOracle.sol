@@ -37,12 +37,19 @@ interface IComposeL2OutputOracle is IComposeL2OutputOracleTypes {
     event AggregationVkeyUpdated(bytes32 indexed aggregationVkey);
     event VerifierUpdated(address indexed verifier);
     event ApprovedProposerUpdated(address indexed approvedProposer);
+    event SuperblockHashSeeded(uint256 indexed superblockNumber, bytes32 indexed superblockHash);
 
     error UnauthorizedProposer();
     error InvalidSuperBlockNumber();
     error EmptyOutputRoot();
+    error EmptySuperblockHash();
+    error MissingSuperblockHash(uint256 superblockNumber);
+    error InvalidParentSuperblockHash(bytes32 expected, bytes32 actual);
+    error UnexpectedSuperblockNumber(uint256 expected, uint256 actual);
 
     function proposeL2Output(bytes32 _outputRoot, bytes32 _l1Hash, bytes memory _extraData) external;
+
+    function initializeV2(uint256 expectedSuperblockNumber, bytes32 currentSuperblockHash) external;
 
     function latestSuperblockNumber() external view returns (uint256);
 
