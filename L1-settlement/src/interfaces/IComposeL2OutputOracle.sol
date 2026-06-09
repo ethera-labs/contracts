@@ -27,17 +27,11 @@ interface IComposeL2OutputOracleTypes {
 
 interface IComposeL2OutputOracle is IComposeL2OutputOracleTypes {
     event L2OutputProposed(
-        uint256 indexed superBlockNumber,
-        uint256 indexed l2BlockNumber,
-        bytes32 indexed outputRoot,
-        uint256 l1Timestamp
+        uint256 indexed superBlockNumber, uint256 indexed l2BlockNumber, bytes32 indexed outputRoot, uint256 l1Timestamp
     );
 
     event SuperblockOutputProposed(
-        uint256 indexed superBlockNumber,
-        uint256 indexed l1BlockNumber,
-        bytes32 indexed outputRoot,
-        uint256 l1Timestamp
+        uint256 indexed superBlockNumber, uint256 indexed l1BlockNumber, bytes32 indexed outputRoot, uint256 l1Timestamp
     );
 
     event AggregationVkeyUpdated(bytes32 indexed aggregationVkey);
@@ -48,9 +42,9 @@ interface IComposeL2OutputOracle is IComposeL2OutputOracleTypes {
     error InvalidSuperBlockNumber();
     error EmptyOutputRoot();
 
-    function proposeL2Output(
-        bytes32 _outputRoot,
-        bytes32 _l1Hash,
-        bytes memory _extraData
-    ) external;
+    function proposeL2Output(bytes32 _outputRoot, bytes32 _l1Hash, bytes memory _extraData) external;
+
+    function latestSuperblockNumber() external view returns (uint256);
+
+    function getSuperblockHash(uint256 _superblockNumber) external view returns (bytes32);
 }

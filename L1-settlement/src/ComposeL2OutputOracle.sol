@@ -15,6 +15,9 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
     /// @notice The number of the last superblock recorded in this contract.
     uint256 public superBlockNumber;
 
+    /// @notice Hash of each recorded superblock aggregation output.
+    mapping(uint256 => bytes32) private superblockHashes;
+
     /// @notice The verification key of the aggregation SP1 program.
     bytes32 public aggregationVkey;
 
@@ -32,9 +35,7 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
 
     /// @notice Initializer.
     /// @param _initParams The initialization parameters for the contract.
-    function initialize(
-        InitParams memory _initParams
-    ) public reinitializer(INITIALIZER_VERSION) {
+    function initialize(InitParams memory _initParams) public reinitializer(INITIALIZER_VERSION) {
         superBlockNumber = _initParams.startingSuperBlockNumber;
 
         aggregationVkey = _initParams.aggregationVkey;
@@ -65,35 +66,28 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
     ///      - Proposers are expected to interact solely with trusted contracts.
     ///
     ///      As long as proposers avoid untrusted contracts, `tx.origin` is as secure as `msg.sender` in this context.
-    function proposeL2Output(
-        bytes32 _outputRoot,
-        bytes32 _l1Hash,
-        bytes memory _extraData
-    ) external {
+    function proposeL2Output(bytes32 _outputRoot, bytes32 _l1Hash, bytes memory _extraData) external {
         if (tx.origin != approvedProposer) {
             revert UnauthorizedProposer();
         }
 
-        (
-            SuperblockAggregationOutputs memory superBlockAggOutputs,
-            bytes memory proof
-        ) = abi.decode(_extraData, (SuperblockAggregationOutputs, bytes));
-
+        (SuperblockAggregationOutputs memory superBlockAggOutputs, bytes memory proof) =
+            abi.decode(_extraData, (SuperblockAggregationOutputs, bytes));
 
         if (_outputRoot == bytes32(0)) {
             revert EmptyOutputRoot();
         }
 
-        // TODO
-        // Check parent hash vs current block hash
+        uint256 nextSuperBlockNumber = superBlockNumber + 1;
+        if (superBlockAggOutputs.superblockNumber != nextSuperBlockNumber) {
+            revert InvalidSuperBlockNumber();
+        }
 
-        superBlockNumber++;
+        ISP1Verifier(verifier)
+            .verifyProof(aggregationVkey, bytes32ToBytes(sha256(abi.encode(superBlockAggOutputs))), proof);
 
-        ISP1Verifier(verifier).verifyProof(
-            aggregationVkey,
-            bytes32ToBytes(sha256(abi.encode(superBlockAggOutputs))),
-            proof
-        );
+        superBlockNumber = nextSuperBlockNumber;
+        superblockHashes[nextSuperBlockNumber] = keccak256(abi.encode(superBlockAggOutputs));
 
         // TODO
         // Store block data if needed for portal legacy support ?
@@ -105,10 +99,7 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
 
             // TODO I think we need a way to identify the rollup chain, maybe we can use the rollupConfigHash?
             emit L2OutputProposed(
-                superBlockAggOutputs.superblockNumber,
-                bootInfo.l2BlockNumber,
-                bootInfo.l2PostRoot,
-                block.timestamp
+                superBlockAggOutputs.superblockNumber, bootInfo.l2BlockNumber, bootInfo.l2PostRoot, block.timestamp
             );
         }
 
@@ -120,33 +111,31 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
         );
     }
 
+    function latestSuperblockNumber() external view returns (uint256) {
+        return superBlockNumber;
+    }
+
+    function getSuperblockHash(uint256 _superblockNumber) external view returns (bytes32) {
+        return superblockHashes[_superblockNumber];
+    }
+
     // TODO remove in prod
     function setAggregationVkey(bytes32 _aggregationVkey) external {
-        require(
-            msg.sender == owner,
-            "ComposeL2OutputOracle: only owner can update aggregation vkey"
-        );
+        require(msg.sender == owner, "ComposeL2OutputOracle: only owner can update aggregation vkey");
         aggregationVkey = _aggregationVkey;
         emit AggregationVkeyUpdated(_aggregationVkey);
     }
 
-
     // TODO remove in prod
     function setVerifier(address _verifier) external {
-        require(
-            msg.sender == owner,
-            "ComposeL2OutputOracle: only owner can update verifier"
-        );
+        require(msg.sender == owner, "ComposeL2OutputOracle: only owner can update verifier");
         verifier = _verifier;
         emit VerifierUpdated(_verifier);
     }
 
     // TODO remove in prod
     function setApprovedProposer(address _approvedProposer) external {
-        require(
-            msg.sender == owner,
-            "ComposeL2OutputOracle: only owner can update approved proposer"
-        );
+        require(msg.sender == owner, "ComposeL2OutputOracle: only owner can update approved proposer");
         approvedProposer = _approvedProposer;
         emit ApprovedProposerUpdated(approvedProposer);
     }
