@@ -37,6 +37,8 @@ contract ComposeL2OutputOracleUnitTest is Test, Utils {
     bytes32 private constant L1_HASH = keccak256("l1_hash");
     bytes32 private constant PARENT_SUPERBLOCK_BATCH_HASH =
         bytes32(0x66cec985afe7e41f97a2f77c876fe9015be47f18baa0bd87c59795c52887df19);
+    bytes32 private constant GENESIS_SUPERBLOCK_HASH =
+        bytes32(0xe7bac8efb0b12db59bbbe8667e31c486d1b6a9cc885edec48b834d943f3e2a46);
     bytes32 private constant WRONG_PARENT_SUPERBLOCK_BATCH_HASH =
         bytes32(0x4fdbc8c6797a8acaabbe9a59947714776c9cf6f78611f61c17da8d3884af41c1);
     address private constant NEW_VERIFIER = address(0xABCD);
@@ -63,6 +65,17 @@ contract ComposeL2OutputOracleUnitTest is Test, Utils {
         assertEq(l2oo.owner(), OWNER);
         assertEq(l2oo.approvedProposer(), APPROVED_PROPOSER);
         assertEq(l2oo.version(), "0.0.1");
+    }
+
+    function test_genesisSuperblockHash_matchesDomainSeparator() public {
+        assertEq(l2oo.GENESIS_SUPERBLOCK_HASH(), keccak256("ComposeL2OutputOracle:GENESIS_SUPERBLOCK_HASH"));
+    }
+
+    function test_initializer_seedsGenesisHash_forFreshDeployment() public {
+        ComposeL2OutputOracle freshL2oo = _deployFreshL2OutputOracle();
+
+        assertEq(freshL2oo.latestSuperblockNumber(), 0);
+        assertEq(freshL2oo.getSuperblockHash(0), GENESIS_SUPERBLOCK_HASH);
     }
 
     function test_setAggregationVkey_byOwner() public {
@@ -128,6 +141,33 @@ contract ComposeL2OutputOracleUnitTest is Test, Utils {
         vm.expectRevert("Initializable: contract is already initialized");
         vm.prank(OWNER);
         l2oo.initializeV2(STARTING_BLOCK_NUMBER, PARENT_SUPERBLOCK_BATCH_HASH);
+    }
+
+    function test_initializeV2_reverts_whenGenesisHashAlreadySeeded() public {
+        ComposeL2OutputOracle freshL2oo = _deployFreshL2OutputOracle();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IComposeL2OutputOracle.SuperblockHashAlreadySeeded.selector, 0, GENESIS_SUPERBLOCK_HASH
+            )
+        );
+        vm.prank(OWNER);
+        freshL2oo.initializeV2(0, PARENT_SUPERBLOCK_BATCH_HASH);
+    }
+
+    function test_proposeL2Output_acceptsFirstProposalFromGenesis() public {
+        ComposeL2OutputOracle freshL2oo = _deployFreshL2OutputOracle();
+        IComposeL2OutputOracleTypes.SuperblockAggregationOutputs memory superBlockAggOutputs =
+            _superblockOutputs(1, GENESIS_SUPERBLOCK_HASH);
+        bytes memory extraData = abi.encode(superBlockAggOutputs, PROOF);
+
+        MockVerifier(initParams.verifier).mockVerifyProof(true);
+
+        vm.prank(APPROVED_PROPOSER, APPROVED_PROPOSER);
+        freshL2oo.proposeL2Output(OUTPUT_ROOT, L1_HASH, extraData);
+
+        assertEq(freshL2oo.latestSuperblockNumber(), 1);
+        assertEq(freshL2oo.getSuperblockHash(1), keccak256(abi.encode(superBlockAggOutputs)));
     }
 
     function test_proposeL2Output_byApprovedProposer() public {
@@ -262,6 +302,13 @@ contract ComposeL2OutputOracleUnitTest is Test, Utils {
     function _seedCurrentSuperblockHash(bytes32 superblockHash) internal {
         vm.prank(OWNER);
         l2oo.initializeV2(STARTING_BLOCK_NUMBER, superblockHash);
+    }
+
+    function _deployFreshL2OutputOracle() internal returns (ComposeL2OutputOracle) {
+        IComposeL2OutputOracleTypes.InitParams memory freshInitParams = initParams;
+        freshInitParams.startingSuperBlockNumber = 0;
+
+        return deployL2OutputOracle(freshInitParams);
     }
 
     function _superblockOutputs(uint256 superblockNumber, bytes32 parentSuperblockBatchHash)

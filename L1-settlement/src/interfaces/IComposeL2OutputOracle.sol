@@ -43,6 +43,7 @@ interface IComposeL2OutputOracle is IComposeL2OutputOracleTypes {
     error InvalidSuperBlockNumber();
     error EmptyOutputRoot();
     error EmptySuperblockHash();
+    error SuperblockHashAlreadySeeded(uint256 superblockNumber, bytes32 existingHash);
     error MissingSuperblockHash(uint256 superblockNumber);
     error InvalidParentSuperblockHash(bytes32 expected, bytes32 actual);
     error UnexpectedSuperblockNumber(uint256 expected, uint256 actual);

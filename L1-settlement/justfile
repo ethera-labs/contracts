@@ -202,6 +202,7 @@ deploy-oracle NETWORK:
             "$NETWORK_PROPOSER_ADDRESS" \
             "$NETWORK_AGGREGATION_VKEY" \
             "$NETWORK_STARTING_SUPERBLOCK_NUMBER" \
+            --private-key "$DEPLOYER_PRIVATE_KEY" \
             --broadcast \
             --verify \
             --etherscan-api-key "$ETHERSCAN_API_KEY"
@@ -214,6 +215,7 @@ deploy-oracle NETWORK:
             "$NETWORK_PROPOSER_ADDRESS" \
             "$NETWORK_AGGREGATION_VKEY" \
             "$NETWORK_STARTING_SUPERBLOCK_NUMBER" \
+            --private-key "$DEPLOYER_PRIVATE_KEY" \
             --broadcast
     fi
 
@@ -227,6 +229,7 @@ deploy-game NETWORK ORACLE_ADDRESS:
         forge script script/DeployComposeDisputeGame.s.sol:DeployComposeDisputeGame \
             --rpc-url "$NETWORK_RPC_URL" \
             --sig "run(address)" {{ORACLE_ADDRESS}} \
+            --private-key "$DEPLOYER_PRIVATE_KEY" \
             --broadcast \
             --verify \
             --etherscan-api-key "$ETHERSCAN_API_KEY"
@@ -234,6 +237,7 @@ deploy-game NETWORK ORACLE_ADDRESS:
         forge script script/DeployComposeDisputeGame.s.sol:DeployComposeDisputeGame \
             --rpc-url "$NETWORK_RPC_URL" \
             --sig "run(address)" {{ORACLE_ADDRESS}} \
+            --private-key "$DEPLOYER_PRIVATE_KEY" \
             --broadcast
     fi
 
@@ -247,6 +251,7 @@ deploy-factory NETWORK:
         forge script script/DeployDisputeGameFactory.s.sol:DeployDisputeGameFactory \
             --rpc-url "$NETWORK_RPC_URL" \
             --sig "run(address)" "$NETWORK_ADMIN_ADDRESS" \
+            --private-key "$DEPLOYER_PRIVATE_KEY" \
             --broadcast \
             --verify \
             --etherscan-api-key "$ETHERSCAN_API_KEY"
@@ -254,5 +259,6 @@ deploy-factory NETWORK:
         forge script script/DeployDisputeGameFactory.s.sol:DeployDisputeGameFactory \
             --rpc-url "$NETWORK_RPC_URL" \
             --sig "run(address)" "$NETWORK_ADMIN_ADDRESS" \
+            --private-key "$DEPLOYER_PRIVATE_KEY" \
             --broadcast
     fi

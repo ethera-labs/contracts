@@ -15,6 +15,10 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
     /// @notice The version of the hash migration initializer.
     uint8 public constant HASH_MIGRATION_VERSION = 2;
 
+    /// @notice Parent hash required for the first superblock in a fresh deployment.
+    bytes32 public constant GENESIS_SUPERBLOCK_HASH =
+        0xe7bac8efb0b12db59bbbe8667e31c486d1b6a9cc885edec48b834d943f3e2a46;
+
     /// @notice The number of the last superblock recorded in this contract.
     uint256 private superBlockNumber;
 
@@ -48,6 +52,11 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
         owner = _initParams.owner;
 
         approvedProposer = _initParams.proposer;
+
+        if (_initParams.startingSuperBlockNumber == 0) {
+            superblockHashes[0] = GENESIS_SUPERBLOCK_HASH;
+            emit SuperblockHashSeeded(0, GENESIS_SUPERBLOCK_HASH);
+        }
     }
 
     /// @notice Seeds the current superblock hash after upgrading from a pre-hash implementation.
@@ -64,6 +73,11 @@ contract ComposeL2OutputOracle is Initializable, ISemver, IComposeL2OutputOracle
 
         if (currentSuperblockHash == bytes32(0)) {
             revert EmptySuperblockHash();
+        }
+
+        bytes32 existingSuperblockHash = superblockHashes[currentSuperBlockNumber];
+        if (existingSuperblockHash != bytes32(0)) {
+            revert SuperblockHashAlreadySeeded(currentSuperBlockNumber, existingSuperblockHash);
         }
 
         superblockHashes[currentSuperBlockNumber] = currentSuperblockHash;
