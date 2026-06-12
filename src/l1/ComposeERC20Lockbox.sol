@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import { ProxyAdminOwnedBase } from "@optimism/src/L1/ProxyAdminOwnedBase.sol";
-import { ReinitializableBase } from "@optimism/src/universal/ReinitializableBase.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {ProxyAdminOwnedBase} from "@optimism/src/L1/ProxyAdminOwnedBase.sol";
+import {ReinitializableBase} from "@optimism/src/universal/ReinitializableBase.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { Constants } from "@optimism/src/libraries/Constants.sol";
-import { ISuperchainConfig } from "@optimism/interfaces/L1/ISuperchainConfig.sol";
-import { IComposeERC20Lockbox } from "src/l1/interfaces/IComposeERC20Lockbox.sol";
-import { IComposePortal } from "src/l1/interfaces/IComposePortal.sol";
+import {Constants} from "@optimism/src/libraries/Constants.sol";
+import {ISuperchainConfig} from "@optimism/interfaces/L1/ISuperchainConfig.sol";
+import {IComposeERC20Lockbox} from "src/l1/interfaces/IComposeERC20Lockbox.sol";
+import {IComposePortal} from "src/l1/interfaces/IComposePortal.sol";
 
 /// @custom:proxied true
 /// @title ComposeERC20Lockbox
@@ -46,13 +46,7 @@ contract ComposeERC20Lockbox is ProxyAdminOwnedBase, Initializable, Reinitializa
     /// @notice Initializer.
     /// @param _superChainConfig The SuperchainConfig contract for cluster-wide pause control.
     /// @param _portals          Portals to authorize at init.
-    function initialize(
-        ISuperchainConfig _superChainConfig,
-        IComposePortal[] calldata _portals
-    )
-        external
-        reinitializer(initVersion())
-    {
+    function initialize(ISuperchainConfig _superChainConfig, IComposePortal[] calldata _portals) external reinitializer(initVersion()) {
         _assertOnlyProxyAdminOrProxyAdminOwner();
 
         superChainConfig = _superChainConfig;

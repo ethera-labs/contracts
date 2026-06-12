@@ -2,31 +2,27 @@
 pragma solidity 0.8.15;
 
 // Contracts
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import { ProxyAdminOwnedBase } from "@optimism/src/L1/ProxyAdminOwnedBase.sol";
-import { ReinitializableBase } from "@optimism/src/universal/ReinitializableBase.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {ProxyAdminOwnedBase} from "@optimism/src/L1/ProxyAdminOwnedBase.sol";
+import {ReinitializableBase} from "@optimism/src/universal/ReinitializableBase.sol";
 
 // Libraries
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { SafeCall } from "@optimism/src/libraries/SafeCall.sol";
-import { EOA } from "@optimism/src/libraries/EOA.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeCall} from "@optimism/src/libraries/SafeCall.sol";
+import {EOA} from "@optimism/src/libraries/EOA.sol";
 
 // Interfaces
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { ICrossDomainMessenger } from "@optimism/interfaces/universal/ICrossDomainMessenger.sol";
-import { ISuperchainConfig } from "@optimism/interfaces/L1/ISuperchainConfig.sol";
-import { ISemver } from "@optimism/interfaces/universal/ISemver.sol";
-import { IComposeERC20Lockbox } from "./interfaces/IComposeERC20Lockbox.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {ICrossDomainMessenger} from "@optimism/interfaces/universal/ICrossDomainMessenger.sol";
+import {ISuperchainConfig} from "@optimism/interfaces/L1/ISuperchainConfig.sol";
+import {ISemver} from "@optimism/interfaces/universal/ISemver.sol";
+import {IComposeERC20Lockbox} from "./interfaces/IComposeERC20Lockbox.sol";
 
 interface IComposePortalERC20 {
-    function depositTransaction(
-        address _localToken,
-        address _from,
-        address _to,
-        uint256 _amount,
-        bytes calldata _extraData
-    ) external;
+    function portalDepositAllowed() external view returns (bool);
+    function erc20DepositAllowed(address _localToken) external view returns (bool);
+    function depositTransaction(address _localToken, address _from, address _to, uint256 _amount, bytes calldata _extraData) external;
     function unlockERC20(address _localToken, uint256 _amount, address _to) external;
 }
 
@@ -67,24 +63,10 @@ contract ComposeL1Bridge is Initializable, ProxyAdminOwnedBase, ReinitializableB
     event ETHBridgeFinalized(address indexed from, address indexed to, uint256 amount, bytes extraData);
 
     /// @notice Emitted when an ERC20 bridge is initiated to the other chain.
-    event ERC20BridgeInitiated(
-        address indexed localToken,
-        address indexed remoteToken,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
+    event ERC20BridgeInitiated(address indexed localToken, address indexed remoteToken, address indexed from, address to, uint256 amount, bytes extraData);
 
     /// @notice Emitted when an ERC20 bridge is finalized on this chain.
-    event ERC20BridgeFinalized(
-        address indexed localToken,
-        address indexed remoteToken,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
+    event ERC20BridgeFinalized(address indexed localToken, address indexed remoteToken, address indexed from, address to, uint256 amount, bytes extraData);
 
     /// @custom:legacy
     /// @notice Mirrors `L1StandardBridge.ETHDepositInitiated` for indexer/SDK parity.
@@ -96,25 +78,11 @@ contract ComposeL1Bridge is Initializable, ProxyAdminOwnedBase, ReinitializableB
 
     /// @custom:legacy
     /// @notice Mirrors `L1StandardBridge.ERC20DepositInitiated` for indexer/SDK parity.
-    event ERC20DepositInitiated(
-        address indexed l1Token,
-        address indexed l2Token,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
+    event ERC20DepositInitiated(address indexed l1Token, address indexed l2Token, address indexed from, address to, uint256 amount, bytes extraData);
 
     /// @custom:legacy
     /// @notice Mirrors `L1StandardBridge.ERC20WithdrawalFinalized` for indexer/SDK parity.
-    event ERC20WithdrawalFinalized(
-        address indexed l1Token,
-        address indexed l2Token,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
+    event ERC20WithdrawalFinalized(address indexed l1Token, address indexed l2Token, address indexed from, address to, uint256 amount, bytes extraData);
 
     /// @notice Thrown when a caller must be an EOA but isn't.
     error ComposeBridge_NotEOA();
@@ -143,13 +111,19 @@ contract ComposeL1Bridge is Initializable, ProxyAdminOwnedBase, ReinitializableB
     /// @notice Thrown when a required address argument is zero.
     error ComposeBridge_ZeroAddress();
 
+    /// @notice Thrown when this portal's L1->L2 deposit path is disabled.
+    error ComposeBridge_PortalDepositsDisabled();
+
+    /// @notice Thrown when ERC20 deposits for a token are disabled.
+    error ComposeBridge_ERC20DepositsDisabled(address token);
+
     /// @notice Emitted when otherBridge is set post-initialization.
     event OtherBridgeSet(address indexed otherBridge);
 
     /// @notice Semantic version.
-    /// @custom:semver 1.1.0-compose
+    /// @custom:semver 1.2.0-compose
     function version() public pure virtual returns (string memory) {
-        return "1.1.0-compose";
+        return "1.2.0-compose";
     }
 
     constructor() ReinitializableBase(1) {
@@ -168,10 +142,7 @@ contract ComposeL1Bridge is Initializable, ProxyAdminOwnedBase, ReinitializableB
         ISuperchainConfig _superchainConfig,
         IComposeERC20Lockbox _erc20Lockbox,
         IComposePortalERC20 _composePortal
-    )
-        external
-        reinitializer(initVersion())
-    {
+    ) external reinitializer(initVersion()) {
         _assertOnlyProxyAdminOrProxyAdminOwner();
 
         messenger = _messenger;
@@ -243,45 +214,18 @@ contract ComposeL1Bridge is Initializable, ProxyAdminOwnedBase, ReinitializableB
     }
 
     /// @notice Sends ERC20 tokens to the sender's address on the other chain.
-    function bridgeERC20(
-        address _localToken,
-        address _remoteToken,
-        uint256 _amount,
-        uint32 _minGasLimit,
-        bytes calldata _extraData
-    )
-        external
-        onlyEOA
-    {
+    function bridgeERC20(address _localToken, address _remoteToken, uint256 _amount, uint32 _minGasLimit, bytes calldata _extraData) external onlyEOA {
         _initiateBridgeERC20(_localToken, _remoteToken, msg.sender, msg.sender, _amount, _minGasLimit, _extraData);
     }
 
     /// @notice Sends ERC20 tokens to a receiver's address on the other chain.
-    function bridgeERC20To(
-        address _localToken,
-        address _remoteToken,
-        address _to,
-        uint256 _amount,
-        uint32 _minGasLimit,
-        bytes calldata _extraData
-    )
-        external
-    {
+    function bridgeERC20To(address _localToken, address _remoteToken, address _to, uint256 _amount, uint32 _minGasLimit, bytes calldata _extraData) external {
         _initiateBridgeERC20(_localToken, _remoteToken, msg.sender, _to, _amount, _minGasLimit, _extraData);
     }
 
     /// @notice Finalizes an ETH bridge on this chain. Only callable via the canonical messenger
     ///         relaying from otherBridge.
-    function finalizeBridgeETH(
-        address _from,
-        address _to,
-        uint256 _amount,
-        bytes calldata _extraData
-    )
-        external
-        payable
-        onlyOtherBridge
-    {
+    function finalizeBridgeETH(address _from, address _to, uint256 _amount, bytes calldata _extraData) external payable onlyOtherBridge {
         if (paused()) revert ComposeBridge_Paused();
         if (msg.value != _amount) revert ComposeBridge_ETHValueMismatch();
         if (_to == address(this) || _to == address(messenger)) revert ComposeBridge_BadETHTarget();
@@ -296,14 +240,7 @@ contract ComposeL1Bridge is Initializable, ProxyAdminOwnedBase, ReinitializableB
     /// @notice Finalizes an ERC20 bridge on this chain. Always releases canonical L1 collateral
     ///         from the shared lockbox via the portal. Only callable via the canonical messenger
     ///         relaying from otherBridge.
-    function finalizeBridgeERC20(
-        address _localToken,
-        address _remoteToken,
-        address _from,
-        address _to,
-        uint256 _amount,
-        bytes calldata _extraData
-    )
+    function finalizeBridgeERC20(address _localToken, address _remoteToken, address _from, address _to, uint256 _amount, bytes calldata _extraData)
         external
         onlyOtherBridge
     {
@@ -317,24 +254,15 @@ contract ComposeL1Bridge is Initializable, ProxyAdminOwnedBase, ReinitializableB
 
     /// @notice Initiates a bridge of ETH through the CrossDomainMessenger. ETH custody ends up
     ///         in the shared ETHLockbox via the portal's receive path.
-    function _initiateBridgeETH(
-        address _from,
-        address _to,
-        uint256 _amount,
-        uint32 _minGasLimit,
-        bytes memory _extraData
-    )
-        internal
-    {
+    function _initiateBridgeETH(address _from, address _to, uint256 _amount, uint32 _minGasLimit, bytes memory _extraData) internal {
         if (msg.value != _amount) revert ComposeBridge_ETHValueMismatch();
+        if (!composePortal.portalDepositAllowed()) revert ComposeBridge_PortalDepositsDisabled();
 
         emit ETHDepositInitiated(_from, _to, _amount, _extraData);
         emit ETHBridgeInitiated(_from, _to, _amount, _extraData);
 
-        messenger.sendMessage{ value: _amount }({
-            _target: otherBridge,
-            _message: abi.encodeWithSelector(this.finalizeBridgeETH.selector, _from, _to, _amount, _extraData),
-            _minGasLimit: _minGasLimit
+        messenger.sendMessage{value: _amount}({
+            _target: otherBridge, _message: abi.encodeWithSelector(this.finalizeBridgeETH.selector, _from, _to, _amount, _extraData), _minGasLimit: _minGasLimit
         });
     }
 
@@ -348,10 +276,10 @@ contract ComposeL1Bridge is Initializable, ProxyAdminOwnedBase, ReinitializableB
         uint256 _amount,
         uint32 _minGasLimit,
         bytes memory _extraData
-    )
-        internal
-    {
+    ) internal {
         if (msg.value != 0) revert ComposeBridge_CannotSendValue();
+        if (!composePortal.portalDepositAllowed()) revert ComposeBridge_PortalDepositsDisabled();
+        if (!composePortal.erc20DepositAllowed(_localToken)) revert ComposeBridge_ERC20DepositsDisabled(_localToken);
 
         IERC20(_localToken).safeTransferFrom(_from, address(composePortal), _amount);
         composePortal.depositTransaction(_localToken, _from, _to, _amount, _extraData);
@@ -361,12 +289,8 @@ contract ComposeL1Bridge is Initializable, ProxyAdminOwnedBase, ReinitializableB
 
         // Pack canonical metadata for the L2 side so it can deploy a CET wrapper on first use
         // without needing an out-of-band registry. Layout: (name, symbol, decimals, userExtra).
-        bytes memory packedExtra = abi.encode(
-            IERC20Metadata(_localToken).name(),
-            IERC20Metadata(_localToken).symbol(),
-            IERC20Metadata(_localToken).decimals(),
-            _extraData
-        );
+        bytes memory packedExtra =
+            abi.encode(IERC20Metadata(_localToken).name(), IERC20Metadata(_localToken).symbol(), IERC20Metadata(_localToken).decimals(), _extraData);
 
         messenger.sendMessage({
             _target: otherBridge,

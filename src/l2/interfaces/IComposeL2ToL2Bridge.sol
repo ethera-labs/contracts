@@ -3,26 +3,13 @@ pragma solidity ^0.8.18;
 
 interface IComposeL2ToL2Bridge {
     event TokensSendQueued(
-        uint256 indexed chainDest,
-        address indexed sender,
-        address indexed receiver,
-        address remoteAsset,
-        uint256 amount,
-        uint256 sessionId,
-        bytes32 messageId
+        uint256 indexed chainDest, address indexed sender, address indexed receiver, address remoteAsset, uint256 amount, uint256 sessionId, bytes32 messageId
     );
     event TokensLocked(address indexed token, address indexed sender, uint256 amount);
     event CETBurned(address indexed token, address indexed sender, uint256 amount);
     event TokensReceived(address indexed token, uint256 amount);
     event ETHLocked(address indexed sender, uint256 amount);
-    event ETHBridged(
-        uint256 indexed chainDest,
-        address indexed sender,
-        address indexed receiver,
-        uint256 amount,
-        uint256 sessionId,
-        bytes32 messageId
-    );
+    event ETHBridged(uint256 indexed chainDest, address indexed sender, address indexed receiver, uint256 amount, uint256 sessionId, bytes32 messageId);
     event ETHReceived(address indexed receiver, uint256 amount);
     event WrappedCETRedeemed(address indexed wrappedCET, address indexed coreCET, address indexed caller, uint256 amount);
 

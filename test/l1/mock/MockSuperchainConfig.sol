@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { ISuperchainConfig } from "interfaces/L1/ISuperchainConfig.sol";
-import { IProxyAdmin } from "interfaces/universal/IProxyAdmin.sol";
+import {ISuperchainConfig} from "interfaces/L1/ISuperchainConfig.sol";
+import {IProxyAdmin} from "interfaces/universal/IProxyAdmin.sol";
 
 contract MockSuperchainConfig is ISuperchainConfig {
     bool internal globalPause;

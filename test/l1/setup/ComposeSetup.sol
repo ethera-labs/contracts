@@ -1,32 +1,32 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { Test } from "forge-std/Test.sol";
-import { console2 as console } from "forge-std/console2.sol";
+import {Test} from "forge-std/Test.sol";
+import {console2 as console} from "forge-std/console2.sol";
 
-import { ComposeDeployUtils } from "script/l1/libraries/ComposeDeployUtils.sol";
-import { DeploySharedInfra, DeploySharedInfraInput, DeploySharedInfraOutput } from "script/l1/deploy/DeploySharedInfra.s.sol";
+import {ComposeDeployUtils} from "script/l1/libraries/ComposeDeployUtils.sol";
+import {DeploySharedInfra, DeploySharedInfraInput, DeploySharedInfraOutput} from "script/l1/deploy/DeploySharedInfra.s.sol";
 
 // Interfaces
-import { ISuperchainConfig } from "interfaces/L1/ISuperchainConfig.sol";
-import { IDisputeGameFactory } from "interfaces/dispute/IDisputeGameFactory.sol";
-import { IComposeAnchorStateRegistry } from "src/l1/interfaces/IComposeAnchorStateRegistry.sol";
-import { IProxyAdmin } from "interfaces/universal/IProxyAdmin.sol";
+import {ISuperchainConfig} from "interfaces/L1/ISuperchainConfig.sol";
+import {IDisputeGameFactory} from "interfaces/dispute/IDisputeGameFactory.sol";
+import {IComposeAnchorStateRegistry} from "src/l1/interfaces/IComposeAnchorStateRegistry.sol";
+import {IProxyAdmin} from "interfaces/universal/IProxyAdmin.sol";
 
 // Contracts
-import { ComposeAnchorStateRegistry } from "src/l1/ComposeAnchorStateRegistry.sol";
-import { ComposeDisputeGame } from "src/l1/ComposeDisputeGame.sol";
-import { ComposeETHLockbox } from "src/l1/ComposeETHLockbox.sol";
-import { MockVerifier } from "test/l1/mock/MockVerifier.sol";
-import { MockSuperchainConfig } from "test/l1/mock/MockSuperchainConfig.sol";
+import {ComposeAnchorStateRegistry} from "src/l1/ComposeAnchorStateRegistry.sol";
+import {ComposeDisputeGame} from "src/l1/ComposeDisputeGame.sol";
+import {ComposeETHLockbox} from "src/l1/ComposeETHLockbox.sol";
+import {L1DepositWhitelist} from "src/l1/L1DepositWhitelist.sol";
+import {MockVerifier} from "test/l1/mock/MockVerifier.sol";
+import {MockSuperchainConfig} from "test/l1/mock/MockSuperchainConfig.sol";
 
 /// @title ComposeSetup
 /// @notice Base test setup for Compose tests. Uses vm.etch pattern to avoid bytecode bloat.
 ///         All test contracts should inherit from this to get access to deployed Compose infrastructure.
 abstract contract ComposeSetup is Test {
     // Deterministic address for deployment script (using keccak256)
-    DeploySharedInfra internal constant deploySharedInfra =
-        DeploySharedInfra(address(uint160(uint256(keccak256("compose.deploy.shared")))));
+    DeploySharedInfra internal constant deploySharedInfra = DeploySharedInfra(address(uint160(uint256(keccak256("compose.deploy.shared")))));
 
     // Deployed contracts - populated during setUp
     IProxyAdmin internal composeProxyAdmin;
@@ -35,6 +35,7 @@ abstract contract ComposeSetup is Test {
     IDisputeGameFactory internal composeDisputeGameFactory;
     IComposeAnchorStateRegistry internal composeAnchorStateRegistry;
     ComposeETHLockbox internal composeETHLockbox;
+    L1DepositWhitelist internal l1DepositWhitelist;
     ComposeDisputeGame internal composeDisputeGameImpl;
     MockVerifier internal mockSP1Verifier;
 
@@ -86,15 +87,14 @@ abstract contract ComposeSetup is Test {
 
         // Etch the deployment script at deterministic address
         // This avoids including deployment script bytecode in test contract
-        ComposeDeployUtils.etchLabelAndAllowCheatcodes(
-            address(deploySharedInfra),
-            "DeploySharedInfra.s.sol:DeploySharedInfra"
-        );
+        ComposeDeployUtils.etchLabelAndAllowCheatcodes(address(deploySharedInfra), "DeploySharedInfra.s.sol:DeploySharedInfra");
 
         // Build explicit test input — bypasses config.json, no env vars needed
         DeploySharedInfraInput testInput = new DeploySharedInfraInput();
         testInput.set(testInput.guardian.selector, guardian);
         testInput.set(testInput.proxyAdminOwner.selector, proxyAdminOwner);
+        testInput.set(testInput.depositWhitelistDefaultAdmin.selector, proxyAdminOwner);
+        testInput.set(testInput.depositWhitelistAdmin.selector, proxyAdminOwner);
         testInput.set(testInput.authorizedProposer.selector, authorizedProposer);
         testInput.set(testInput.sp1Verifier.selector, address(mockSP1Verifier));
         testInput.set(testInput.aggregationVkey.selector, bytes32(uint256(1)));
@@ -115,6 +115,7 @@ abstract contract ComposeSetup is Test {
         composeDisputeGameFactory = output.composeDisputeGameFactoryProxy();
         composeAnchorStateRegistry = output.composeAnchorStateRegistryProxy();
         composeETHLockbox = output.composeETHLockboxProxy();
+        l1DepositWhitelist = output.l1DepositWhitelistProxy();
         composeDisputeGameImpl = output.composeDisputeGameImpl();
 
         // Different superchain config
@@ -128,6 +129,7 @@ abstract contract ComposeSetup is Test {
         console.log("  DisputeGameFactory:", address(composeDisputeGameFactory));
         console.log("  AnchorStateRegistry:", address(composeAnchorStateRegistry));
         console.log("  ETHLockbox:", address(composeETHLockbox));
+        console.log("  L1DepositWhitelist:", address(l1DepositWhitelist));
         console.log("  DisputeGame impl:", address(composeDisputeGameImpl));
     }
 }

@@ -2,19 +2,19 @@
 pragma solidity 0.8.15;
 
 // Contracts
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import { ProxyAdminOwnedBase } from "@optimism/src/L1/ProxyAdminOwnedBase.sol";
-import { ReinitializableBase } from "@optimism/src/universal/ReinitializableBase.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {ProxyAdminOwnedBase} from "@optimism/src/L1/ProxyAdminOwnedBase.sol";
+import {ReinitializableBase} from "@optimism/src/universal/ReinitializableBase.sol";
 
 // Libraries
-import { GameType, Proposal, Claim, GameStatus, Hash } from "@optimism/src/dispute/lib/Types.sol";
+import {GameType, Proposal, Claim, GameStatus, Hash} from "@optimism/src/dispute/lib/Types.sol";
 
 // Interfaces
-import { ISemver } from "@optimism/interfaces/universal/ISemver.sol";
-import { IFaultDisputeGame } from "@optimism/interfaces/dispute/IFaultDisputeGame.sol";
-import { IDisputeGame } from "@optimism/interfaces/dispute/IDisputeGame.sol";
-import { IDisputeGameFactory } from "@optimism/interfaces/dispute/IDisputeGameFactory.sol";
-import { ISuperchainConfig } from "@optimism/interfaces/L1/ISuperchainConfig.sol";
+import {ISemver} from "@optimism/interfaces/universal/ISemver.sol";
+import {IFaultDisputeGame} from "@optimism/interfaces/dispute/IFaultDisputeGame.sol";
+import {IDisputeGame} from "@optimism/interfaces/dispute/IDisputeGame.sol";
+import {IDisputeGameFactory} from "@optimism/interfaces/dispute/IDisputeGameFactory.sol";
+import {ISuperchainConfig} from "@optimism/interfaces/L1/ISuperchainConfig.sol";
 
 /// @custom:proxied true
 /// @title AnchorStateRegistry
@@ -91,10 +91,7 @@ contract ComposeAnchorStateRegistry is ProxyAdminOwnedBase, Initializable, Reini
         IDisputeGameFactory _disputeGameFactory,
         Proposal memory _startingAnchorRoot,
         GameType _startingRespectedGameType
-    )
-        external
-        reinitializer(initVersion())
-    {
+    ) external reinitializer(initVersion()) {
         // Initialization transactions must come from the ProxyAdmin or its owner.
         _assertOnlyProxyAdminOrProxyAdminOwner();
 
@@ -160,7 +157,13 @@ contract ComposeAnchorStateRegistry is ProxyAdminOwnedBase, Initializable, Reini
     ///         be removed in a future release. Use getAnchorRoot() instead. Anchor roots are no
     ///         longer stored per game type, so this function will return the same root for all
     ///         game types.
-    function anchors(GameType /* unused */ ) external view returns (Hash, uint256) {
+    function anchors(
+        GameType /* unused */
+    )
+        external
+        view
+        returns (Hash, uint256)
+    {
         return getAnchorRoot();
     }
 
@@ -185,8 +188,7 @@ contract ComposeAnchorStateRegistry is ProxyAdminOwnedBase, Initializable, Reini
         (GameType gameType, Claim rootClaim, bytes memory extraData) = _game.gameData();
 
         // Grab the verified address of the game based on the game data.
-        (IDisputeGame factoryRegisteredGame,) =
-            disputeGameFactory.games({ _gameType: gameType, _rootClaim: rootClaim, _extraData: extraData });
+        (IDisputeGame factoryRegisteredGame,) = disputeGameFactory.games({_gameType: gameType, _rootClaim: rootClaim, _extraData: extraData});
 
         // Grab the AnchorStateRegistry from the game. Awkward type conversion here but
         // IDisputeGame probably needs to have this function eventually anyway.
@@ -230,8 +232,7 @@ contract ComposeAnchorStateRegistry is ProxyAdminOwnedBase, Initializable, Reini
     /// @param _game The game to check.
     /// @return Whether the game is resolved.
     function isGameResolved(IDisputeGame _game) public view returns (bool) {
-        return _game.resolvedAt().raw() != 0
-            && (_game.status() == GameStatus.DEFENDER_WINS || _game.status() == GameStatus.CHALLENGER_WINS);
+        return _game.resolvedAt().raw() != 0 && (_game.status() == GameStatus.DEFENDER_WINS || _game.status() == GameStatus.CHALLENGER_WINS);
     }
 
     /// @notice **READ THIS FUNCTION DOCUMENTATION CAREFULLY.**

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import { IETHLiquidity } from "src/l2/interfaces/external/IETHLiquidity.sol";
+import {IETHLiquidity} from "src/l2/interfaces/external/IETHLiquidity.sol";
 
 /// @title ComposeETHLiquidity
 /// @notice Minimal ETHLiquidity-shaped pool for the Compose L2↔L2 bridge on chains where the
@@ -67,7 +67,7 @@ contract ComposeETHLiquidity is IETHLiquidity {
         if (_amount == 0) revert InvalidAmount();
         if (address(this).balance < _amount) revert InvalidAmount();
         emit LiquidityMinted(msg.sender, _amount);
-        (bool ok, ) = msg.sender.call{ value: _amount }("");
+        (bool ok,) = msg.sender.call{value: _amount}("");
         if (!ok) revert TransferFailed();
     }
 
@@ -82,5 +82,5 @@ contract ComposeETHLiquidity is IETHLiquidity {
     }
 
     /// @dev Required by the IETHLiquidity shape; unused at runtime.
-    function __constructor__() external pure { }
+    function __constructor__() external pure {}
 }

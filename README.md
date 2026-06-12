@@ -15,7 +15,7 @@ Smart contracts for the Compose Network: a shared settlement layer that lets mul
 ```
 contracts/
 ├── src/
-│   ├── l1/            # ComposeDisputeGame, ComposeAnchorStateRegistry, ComposeETHLockbox, ComposePortal
+│   ├── l1/            # ComposeDisputeGame, ComposeAnchorStateRegistry, lockboxes, whitelist, portals
 │   └── l2/            # CETFactory, L2ComposeBridge, ComposeETHLiquidity, ComposeL2ToL2Bridge
 ├── test/
 │   ├── l1/            # L1 contract tests + setup harness
@@ -23,7 +23,7 @@ contracts/
 ├── script/
 │   ├── l1/
 │   │   ├── deploy/    # DeploySharedInfra
-│   │   ├── migrate/   # MigrateRollup*, UpgradeToPortalInterop, UpgradeComposePortal
+│   │   ├── migrate/   # MigrateRollup*, whitelist-aware portal upgrades
 │   │   └── libraries/ # ComposeConfig (reads config.json)
 │   └── l2/
 │       ├── bridge/    # DeployComposeBridge, WireL2ComposeBridge
@@ -47,6 +47,8 @@ All scripts read from a single `config.json`. Private keys always come from the 
   "l1": {
     "guardian": "0x...",
     "proxyAdminOwner": "0x...",
+    "depositWhitelistDefaultAdmin": "0x...",
+    "depositWhitelistAdmin": "0x...",
     "authorizedProposer": "0x...",
     "sp1Verifier": "0x...",
     "aggregationVkey": "0x...",
@@ -60,7 +62,9 @@ All scripts read from a single `config.json`. Private keys always come from the 
       "disputeGameFactory": "0x...",
       "anchorStateRegistry": "0x...",
       "ethLockbox": "0x...",
-      "composeDisputeGame": "0x..."
+      "depositWhitelist": "0x...",
+      "composeDisputeGame": "0x...",
+      "erc20LockboxProxy": "0x..."
     }
   },
   "rollups": {
@@ -81,7 +85,8 @@ All scripts read from a single `config.json`. Private keys always come from the 
         "systemConfig": "0x...",
         "l1CrossDomainMessenger": "0x...",
         "l1StandardBridge": "0x...",
-        "l1ERC721Bridge": "0x..."
+        "l1ERC721Bridge": "0x...",
+        "composeBridge": "0x..."
       }
     }
   }
@@ -89,6 +94,8 @@ All scripts read from a single `config.json`. Private keys always come from the 
 ```
 
 **`l1`** — shared infrastructure config. Static fields are filled manually before deploy. `deployed.*` fields are written automatically by `just l1-deploy-shared` when `SAVE_DEPLOY_OUTPUT=true`.
+
+`depositWhitelistDefaultAdmin` receives `DEFAULT_ADMIN_ROLE` on `L1DepositWhitelist` and is used only to grant/revoke roles. `depositWhitelistAdmin` receives `DEPOSIT_WHITELIST_ROLE` and can allow/block portal and ERC-20 deposit paths. These may be the same multisig for MVP, but the roles are separate.
 
 **`rollups`** — one section per rollup. `l1.*` fields are the existing OP Stack contracts on L1 that the migration scripts will upgrade.
 
@@ -103,6 +110,7 @@ cp .env.example .env
 ```
 PROXY_ADMIN_OWNER_KEY=0x...
 GUARDIAN_KEY=0x...
+DEPOSIT_WHITELIST_ADMIN_KEY=0x...
 
 ROLLUP_NAME=chain-100003
 DEPLOYER_KEY=0x...
@@ -161,6 +169,15 @@ just l1-migrate-v4 chain-100003 true   # dry run
 just l1-migrate-v3 chain-100003        # V3 rollup (full upgrade)
 ```
 
+After a whitelist-aware portal upgrade, all new L1 deposits are default-denied until the whitelist role holder explicitly allows the portal path and any ERC-20 tokens:
+
+```sh
+just l1-whitelist-portal chain-100003 true
+just l1-whitelist-erc20 chain-100003 0x<Token> true
+```
+
+The upgrade also disables legacy `L1StandardBridge` deposit entry points. Existing completed deposits remain historical state; new deposits must use the Compose paths and pass the whitelist.
+
 ### L2 Deployment
 
 ```sh
@@ -184,6 +201,7 @@ L1 (Ethereum / Sepolia)
 │  │  DisputeGameFactory ── registers ComposeDisputeGame     │
 │  │  ComposeAnchorStateRegistry ── superblock anchors       │
 │  │  ComposeETHLockbox ── unified ETH liquidity             │
+│  │  L1DepositWhitelist ── default-deny deposit policy       │
 │  └─────────────────────────────────────────────────────────┘
 │            ↑ each rollup's portal authorizes into lockbox
 │
@@ -225,8 +243,10 @@ just l1-migrate-v3 <rollup> [dryRun]
 just l1-migrate-v4 <rollup> [dryRun]
 just l1-upgrade-portal-interop <rollup> [dryRun]
 just l1-upgrade-compose-portal <rollup> <proofMaturityDelay> [dryRun]
-just l1-upgrade-compose-bridge <configJson> [dryRun]
-just l1-wire-bridges
+just l1-upgrade-compose-bridge <rollup> [dryRun]
+just l1-wire-bridges <rollup>
+just l1-whitelist-portal <rollup> <allowed>
+just l1-whitelist-erc20 <rollup> <token> <allowed>
 
 # L2
 just l2-deploy-bridge [rollup]

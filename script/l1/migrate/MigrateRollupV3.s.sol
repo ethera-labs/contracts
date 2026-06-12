@@ -1,37 +1,38 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { Script } from "forge-std/Script.sol";
-import { console2 as console } from "forge-std/console2.sol";
+import {Script} from "forge-std/Script.sol";
+import {console2 as console} from "forge-std/console2.sol";
 
-import { MigrateRollupInput, MigrateRollupOutput } from "./MigrateRollupV3IO.sol";
-import { ComposeDeployUtils } from "script/l1/libraries/ComposeDeployUtils.sol";
-import { ComposeConfig } from "script/l1/libraries/ComposeConfig.sol";
-import { RollupConfig } from "script/l2/libraries/RollupConfig.sol";
+import {MigrateRollupInput, MigrateRollupOutput} from "./MigrateRollupV3IO.sol";
+import {ComposeDeployUtils} from "script/l1/libraries/ComposeDeployUtils.sol";
+import {ComposeConfig} from "script/l1/libraries/ComposeConfig.sol";
+import {RollupConfig} from "script/l2/libraries/RollupConfig.sol";
 
 // Interfaces
-import { IProxyAdmin } from "interfaces/universal/IProxyAdmin.sol";
-import { ISystemConfig } from "interfaces/L1/ISystemConfig.sol";
-import { ISuperchainConfig } from "interfaces/L1/ISuperchainConfig.sol";
-import { IOptimismPortal2 } from "interfaces/L1/IOptimismPortal2.sol";
-import { IOptimismPortalInterop } from "interfaces/L1/IOptimismPortalInterop.sol";
-import { IL1CrossDomainMessenger } from "interfaces/L1/IL1CrossDomainMessenger.sol";
-import { IL1StandardBridge } from "interfaces/L1/IL1StandardBridge.sol";
-import { IL1ERC721Bridge } from "interfaces/L1/IL1ERC721Bridge.sol";
-import { IComposeAnchorStateRegistry } from "src/l1/interfaces/IComposeAnchorStateRegistry.sol";
-import { IAnchorStateRegistry } from "interfaces/dispute/IAnchorStateRegistry.sol";
-import { IETHLockbox } from "interfaces/L1/IETHLockbox.sol";
-import { ComposeETHLockbox } from "src/l1/ComposeETHLockbox.sol";
+import {IProxyAdmin} from "interfaces/universal/IProxyAdmin.sol";
+import {ISystemConfig} from "interfaces/L1/ISystemConfig.sol";
+import {ISuperchainConfig} from "interfaces/L1/ISuperchainConfig.sol";
+import {IOptimismPortal2} from "interfaces/L1/IOptimismPortal2.sol";
+import {IOptimismPortalInterop} from "interfaces/L1/IOptimismPortalInterop.sol";
+import {IL1CrossDomainMessenger} from "interfaces/L1/IL1CrossDomainMessenger.sol";
+import {IL1StandardBridge} from "interfaces/L1/IL1StandardBridge.sol";
+import {IL1ERC721Bridge} from "interfaces/L1/IL1ERC721Bridge.sol";
+import {IComposeAnchorStateRegistry} from "src/l1/interfaces/IComposeAnchorStateRegistry.sol";
+import {IL1DepositWhitelist} from "src/l1/interfaces/IL1DepositWhitelist.sol";
+import {IAnchorStateRegistry} from "interfaces/dispute/IAnchorStateRegistry.sol";
+import {IETHLockbox} from "interfaces/L1/IETHLockbox.sol";
+import {ComposeETHLockbox} from "src/l1/ComposeETHLockbox.sol";
 
 // Contracts to deploy
-import { SystemConfig } from "src/L1/SystemConfig.sol";
-import { OptimismPortalInterop } from "src/L1/OptimismPortalInterop.sol";
-import { L1CrossDomainMessenger } from "src/L1/L1CrossDomainMessenger.sol";
-import { L1StandardBridge } from "src/L1/L1StandardBridge.sol";
-import { L1ERC721Bridge } from "src/L1/L1ERC721Bridge.sol";
+import {SystemConfig} from "src/L1/SystemConfig.sol";
+import {ComposePortal} from "src/l1/ComposePortal.sol";
+import {L1CrossDomainMessenger} from "src/L1/L1CrossDomainMessenger.sol";
+import {ComposeL1StandardBridge} from "src/l1/ComposeL1StandardBridge.sol";
+import {L1ERC721Bridge} from "src/L1/L1ERC721Bridge.sol";
 
 // Features
-import { Features } from "src/L1/SystemConfig.sol";
+import {Features} from "src/L1/SystemConfig.sol";
 
 /// @title MigrateRollupV3
 /// @notice Script to execute Phase 2: Per-Rollup Migration (V3 → Compose)
@@ -113,11 +114,11 @@ contract MigrateRollupV3 is Script {
 
         return migrationInput;
     }
-    
+
     /// @notice Step 1: Deploy new v4.x implementation contracts
     function step1_DeployImplementations() internal {
         console.log("\nStep 1: Deploying New Implementations...");
-        
+
         if (dryRun) {
             console.log("  [DRY RUN] Would deploy implementations");
             // In dry run, use placeholder addresses
@@ -130,36 +131,34 @@ contract MigrateRollupV3 is Script {
         }
 
         vm.startBroadcast(vm.envOr("DEPLOYER_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)));
-        
+
         // SystemConfig
         SystemConfig systemConfigImpl = new SystemConfig();
         ComposeDeployUtils.label(address(systemConfigImpl), "SystemConfigImpl");
         console.log("  SystemConfig impl:", address(systemConfigImpl));
-        
-        // OptimismPortalInterop (for Compose migration support)
-        OptimismPortalInterop portalImpl = new OptimismPortalInterop(
-            input.proofMaturityDelaySeconds()
-        );
-        ComposeDeployUtils.label(address(portalImpl), "OptimismPortalInteropImpl");
-        console.log("  OptimismPortalInterop impl:", address(portalImpl));
-        
+
+        // ComposePortal (Interop + default-deny deposit whitelist support)
+        ComposePortal portalImpl = new ComposePortal(input.proofMaturityDelaySeconds());
+        ComposeDeployUtils.label(address(portalImpl), "ComposePortalImpl");
+        console.log("  ComposePortal impl:", address(portalImpl));
+
         // L1CrossDomainMessenger
         L1CrossDomainMessenger xdmImpl = new L1CrossDomainMessenger();
         ComposeDeployUtils.label(address(xdmImpl), "L1CrossDomainMessengerImpl");
         console.log("  L1CrossDomainMessenger impl:", address(xdmImpl));
-        
-        // L1StandardBridge
-        L1StandardBridge bridgeImpl = new L1StandardBridge();
-        ComposeDeployUtils.label(address(bridgeImpl), "L1StandardBridgeImpl");
-        console.log("  L1StandardBridge impl:", address(bridgeImpl));
-        
+
+        // L1StandardBridge replacement with deposits disabled
+        ComposeL1StandardBridge bridgeImpl = new ComposeL1StandardBridge();
+        ComposeDeployUtils.label(address(bridgeImpl), "ComposeL1StandardBridgeImpl");
+        console.log("  ComposeL1StandardBridge impl:", address(bridgeImpl));
+
         // L1ERC721Bridge
         L1ERC721Bridge erc721BridgeImpl = new L1ERC721Bridge();
         ComposeDeployUtils.label(address(erc721BridgeImpl), "L1ERC721BridgeImpl");
         console.log("  L1ERC721Bridge impl:", address(erc721BridgeImpl));
-        
+
         vm.stopBroadcast();
-        
+
         // Store addresses
         output.set(output.systemConfigImpl.selector, address(systemConfigImpl));
         output.set(output.optimismPortalImpl.selector, address(portalImpl));
@@ -167,123 +166,116 @@ contract MigrateRollupV3 is Script {
         output.set(output.l1StandardBridgeImpl.selector, address(bridgeImpl));
         output.set(output.l1ERC721BridgeImpl.selector, address(erc721BridgeImpl));
     }
-    
+
     /// @notice Step 2: Upgrade SystemConfig with l2ChainId and superchainConfig
     function step2_UpgradeSystemConfig() internal {
         console.log("\nStep 2: Upgrading SystemConfig...");
-        
+
         IProxyAdmin proxyAdmin = IProxyAdmin(input.rollupProxyAdmin());
-        
-        bytes memory upgradeCalldata = abi.encodeCall(
-            ISystemConfig.upgrade,
-            (input.l2ChainId(), input.composeSuperchainConfig())
-        );
-        
+
+        bytes memory upgradeCalldata = abi.encodeCall(ISystemConfig.upgrade, (input.l2ChainId(), input.composeSuperchainConfig()));
+
         if (dryRun) {
             console.log("  [DRY RUN] Would upgrade SystemConfig");
             console.log("    Owner:", getRollupOwner());
             console.log("    Implementation:", output.systemConfigImpl());
             return;
         }
-        
+
         vm.startBroadcast(vm.envOr("ROLLUP_OWNER_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)));
-        proxyAdmin.upgradeAndCall(
-            payable(address(input.systemConfig())),
-            output.systemConfigImpl(),
-            upgradeCalldata
-        );
+        proxyAdmin.upgradeAndCall(payable(address(input.systemConfig())), output.systemConfigImpl(), upgradeCalldata);
         vm.stopBroadcast();
         console.log("  SystemConfig upgraded successfully");
     }
-    
+
     /// @notice Step 3: Enable ETH_LOCKBOX feature flag
     function step3_EnableETHLockboxFeature() internal {
         console.log("\nStep 3: Enabling ETH_LOCKBOX Feature...");
-        
+
         if (dryRun) {
             console.log("  [DRY RUN] Would enable ETH_LOCKBOX feature");
             console.log("    Owner:", getRollupOwner());
             return;
         }
-        
+
         vm.startBroadcast(vm.envOr("ROLLUP_OWNER_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)));
         input.systemConfig().setFeature(Features.ETH_LOCKBOX, true);
         vm.stopBroadcast();
-        
 
         console.log("  ETH_LOCKBOX feature enabled");
     }
-    
-    /// @notice Step 4: Upgrade OptimismPortal2 implementation
+
+    /// @notice Step 4: Upgrade OptimismPortal2 implementation and wire deposit whitelist
     function step4_UpgradeOptimismPortalImpl() internal {
         console.log("\nStep 4: Upgrading OptimismPortal2 Implementation...");
-        
+
         IProxyAdmin proxyAdmin = IProxyAdmin(input.rollupProxyAdmin());
-        
+
         if (dryRun) {
-            console.log("  [DRY RUN] Would upgrade OptimismPortal2 impl");
+            console.log("  [DRY RUN] Would upgrade OptimismPortal2 impl and wire deposit whitelist");
             console.log("    Owner:", getRollupOwner());
             console.log("    Implementation:", output.optimismPortalImpl());
             return;
         }
-        
+
         vm.startBroadcast(vm.envOr("ROLLUP_OWNER_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)));
-        proxyAdmin.upgrade(
+        proxyAdmin.upgradeAndCall(
             payable(address(input.optimismPortal())),
-            output.optimismPortalImpl()
+            output.optimismPortalImpl(),
+            abi.encodeCall(ComposePortal.initializeDepositWhitelist, (IL1DepositWhitelist(ComposeConfig.depositWhitelist())))
         );
         vm.stopBroadcast();
-        
-        console.log("  OptimismPortal2 impl upgraded");
+
+        console.log("  OptimismPortal2 impl upgraded; default-deny deposit whitelist wired");
     }
-    
+
     /// @notice Step 5: SKIPPED - ASR and lockbox are set in Step 9 (migrateToSuperRoots)
     /// @dev The upgrade() function only sets ASR and lockbox but doesn't enable superRootsActive.
     ///      We use migrateToSuperRoots() instead which does all three atomically.
     function step5_InitializePortalUpgrade() internal {
         console.log("\nStep 5: Skipped (ASR/Lockbox set in Step 9)");
     }
-    
+
     /// @notice Step 6: Authorize portal in shared lockbox
     function step6_AuthorizePortalInLockbox() internal {
         console.log("\nStep 6: Authorizing Portal in Lockbox...");
-        
+
         // Note: This requires the Compose ProxyAdmin owner's private key
         if (dryRun) {
             console.log("  [DRY RUN] Would authorize portal in lockbox");
             console.log("    Compose Owner:", getComposeOwner());
             return;
         }
-        
+
         vm.startBroadcast(vm.envOr("PROXY_ADMIN_OWNER_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)));
         console.log("Compose owner:", getComposeOwner());
         input.composeETHLockbox().authorizePortal(input.optimismPortal());
         vm.stopBroadcast();
-        
+
         console.log("  Portal authorized in lockbox");
     }
-    
+
     /// @notice Step 7: COMBINED WITH STEP 9
     /// @dev migrateLiquidity() requires ethLockbox to be set first, which happens in migrateToSuperRoots()
     ///      Per OptimismPortalInterop docs: these must be called atomically in the same transaction
     function step7_MigrateETHLiquidity() internal {
         console.log("\nStep 7: Combined with Step 9 (atomic migration)");
     }
-    
+
     /// @notice Step 8: Upgrade all bridges
     function step8_UpgradeBridges() internal {
         console.log("\nStep 8: Upgrading Bridges...");
-        
+
         IProxyAdmin proxyAdmin = IProxyAdmin(input.rollupProxyAdmin());
-        
+
         if (dryRun) {
             console.log("  [DRY RUN] Would upgrade all bridges");
             console.log("    Owner:", getRollupOwner());
             return;
         }
-        
+
         vm.startBroadcast(vm.envOr("ROLLUP_OWNER_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)));
-        
+
         // L1CrossDomainMessenger
         proxyAdmin.upgradeAndCall(
             payable(address(input.l1CrossDomainMessenger())),
@@ -291,67 +283,60 @@ contract MigrateRollupV3 is Script {
             abi.encodeCall(IL1CrossDomainMessenger.upgrade, (input.systemConfig()))
         );
         console.log("  L1CrossDomainMessenger upgraded");
-        
+
         // L1StandardBridge
         proxyAdmin.upgradeAndCall(
-            payable(address(input.l1StandardBridge())),
-            output.l1StandardBridgeImpl(),
-            abi.encodeCall(IL1StandardBridge.upgrade, (input.systemConfig()))
+            payable(address(input.l1StandardBridge())), output.l1StandardBridgeImpl(), abi.encodeCall(IL1StandardBridge.upgrade, (input.systemConfig()))
         );
         console.log("  L1StandardBridge upgraded");
-        
+
         // L1ERC721Bridge
         proxyAdmin.upgradeAndCall(
-            payable(address(input.l1ERC721Bridge())),
-            output.l1ERC721BridgeImpl(),
-            abi.encodeCall(IL1ERC721Bridge.upgrade, (input.systemConfig()))
+            payable(address(input.l1ERC721Bridge())), output.l1ERC721BridgeImpl(), abi.encodeCall(IL1ERC721Bridge.upgrade, (input.systemConfig()))
         );
         console.log("  L1ERC721Bridge upgraded");
-        
+
         vm.stopBroadcast();
     }
-    
+
     /// @notice Step 9: Migrate to Super Roots + Migrate ETH Liquidity (atomic)
     /// @dev These MUST be in the same transaction per OptimismPortalInterop contract docs
     function step9_MigrateToSuperRoots() internal {
         console.log("\nStep 9: Migrating to Super Roots + ETH Liquidity (atomic)...");
-        
+
         uint256 portalBalance = address(input.optimismPortal()).balance;
         console.log("  Portal ETH balance:", portalBalance);
-        
+
         if (dryRun) {
             console.log("  [DRY RUN] Would migrate to Super Roots and transfer ETH");
             console.log("    Owner:", getRollupOwner());
             return;
         }
-        
+
         IOptimismPortalInterop portal = IOptimismPortalInterop(payable(address(input.optimismPortal())));
-        
+
         vm.startBroadcast(vm.envOr("ROLLUP_OWNER_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)));
-        
+
         // Step 1: Set new lockbox and ASR, enable superRootsActive
-        portal.migrateToSuperRoots(
-            IETHLockbox(address(input.composeETHLockbox())),
-            IAnchorStateRegistry(address(input.composeAnchorStateRegistry()))
-        );
+        portal.migrateToSuperRoots(IETHLockbox(address(input.composeETHLockbox())), IAnchorStateRegistry(address(input.composeAnchorStateRegistry())));
         console.log("  Portal migrated to Super Roots mode");
         console.log("    ASR:", address(input.composeAnchorStateRegistry()));
         console.log("    Lockbox:", address(input.composeETHLockbox()));
         console.log("    superRootsActive: true");
-        
+
         // Step 2: Migrate ETH liquidity (now that ethLockbox is set)
         portal.migrateLiquidity();
         console.log("  ETH migrated to lockbox");
         console.log("    Amount:", portalBalance);
         console.log("    New portal balance:", address(input.optimismPortal()).balance);
-        
+
         vm.stopBroadcast();
     }
-    
+
     /// @notice Validate configuration before migration
     function validatePreMigration() internal view {
         console.log("\nPre-Migration Validation:");
-        
+
         // Verify all addresses are set
         require(input.l2ChainId() != 0, "L2 Chain ID not set");
         require(address(input.systemConfig()) != address(0), "SystemConfig not set");
@@ -362,82 +347,76 @@ contract MigrateRollupV3 is Script {
         require(address(input.composeSuperchainConfig()) != address(0), "Compose SuperchainConfig not set");
         require(address(input.composeAnchorStateRegistry()) != address(0), "Compose ASR not set");
         require(address(input.composeETHLockbox()) != address(0), "Compose ETHLockbox not set");
-        
+
         console.log("  All required addresses are set");
         console.log("  L2 Chain ID:", input.l2ChainId());
         console.log("  Rollup ProxyAdmin:", input.rollupProxyAdmin());
         console.log("  Rollup ProxyAdmin Owner:", input.rollupProxyAdminOwner());
     }
-    
+
     /// @notice Validate state after migration
     function validatePostMigration() internal view {
         if (dryRun) {
             console.log("\n[DRY RUN] Skipping post-migration validation");
             return;
         }
-        
+
         console.log("\nPost-Migration Validation:");
-        
+
         // Verify SystemConfig upgrade
-        require(
-            input.systemConfig().l2ChainId() == input.l2ChainId(),
-            "SystemConfig l2ChainId mismatch"
-        );
-        require(
-            address(input.systemConfig().superchainConfig()) == address(input.composeSuperchainConfig()),
-            "SystemConfig superchainConfig mismatch"
-        );
+        require(input.systemConfig().l2ChainId() == input.l2ChainId(), "SystemConfig l2ChainId mismatch");
+        require(address(input.systemConfig().superchainConfig()) == address(input.composeSuperchainConfig()), "SystemConfig superchainConfig mismatch");
         console.log("  SystemConfig: OK");
-        
+
         // Verify ETH_LOCKBOX feature
-        require(
-            input.systemConfig().isFeatureEnabled(Features.ETH_LOCKBOX),
-            "ETH_LOCKBOX feature not enabled"
-        );
+        require(input.systemConfig().isFeatureEnabled(Features.ETH_LOCKBOX), "ETH_LOCKBOX feature not enabled");
         console.log("  ETH_LOCKBOX feature: OK");
-        
+
         // Verify Portal upgrade
-        require(
-            address(input.optimismPortal().anchorStateRegistry()) == address(input.composeAnchorStateRegistry()),
-            "Portal ASR mismatch"
-        );
-        require(
-            address(input.optimismPortal().ethLockbox()) == address(input.composeETHLockbox()),
-            "Portal lockbox mismatch"
-        );
+        require(address(input.optimismPortal().anchorStateRegistry()) == address(input.composeAnchorStateRegistry()), "Portal ASR mismatch");
+        require(address(input.optimismPortal().ethLockbox()) == address(input.composeETHLockbox()), "Portal lockbox mismatch");
         console.log("  Portal upgrade: OK");
-        
+
         // Verify Super Roots mode
-        require(
-            IOptimismPortalInterop(payable(address(input.optimismPortal()))).superRootsActive(),
-            "Super Roots not active"
-        );
+        require(IOptimismPortalInterop(payable(address(input.optimismPortal()))).superRootsActive(), "Super Roots not active");
         console.log("  Super Roots mode: OK");
-        
+
         // Verify ETH migration
-        require(
-            address(input.optimismPortal()).balance == 0,
-            "Portal still has ETH balance"
-        );
+        require(address(input.optimismPortal()).balance == 0, "Portal still has ETH balance");
         console.log("  ETH migration: OK");
-        
+
         // Verify portal authorization
-        require(
-            input.composeETHLockbox().authorizedPortals(input.optimismPortal()),
-            "Portal not authorized in lockbox"
-        );
+        require(input.composeETHLockbox().authorizedPortals(input.optimismPortal()), "Portal not authorized in lockbox");
         console.log("  Portal authorization: OK");
-        
+
+        _validateDepositWhitelist();
+        console.log("  Deposit whitelist: OK");
+
+        _validateLegacyBridgeBlocked();
+        console.log("  Legacy bridge deposits disabled: OK");
+
         console.log("\n  All validations passed!");
     }
-    
+
     /// @notice Get the rollup's ProxyAdmin owner address from config
     function getRollupOwner() internal view returns (address) {
         return input.rollupProxyAdminOwner();
     }
-    
+
     /// @notice Get the Compose ProxyAdmin owner address from loaded input
     function getComposeOwner() internal view returns (address) {
         return input.composeProxyAdminOwner();
+    }
+
+    function _validateDepositWhitelist() internal view {
+        (bool ok, bytes memory ret) = address(input.optimismPortal()).staticcall(abi.encodeWithSignature("depositWhitelist()"));
+        require(ok, "Portal whitelist call failed");
+        require(abi.decode(ret, (address)) == ComposeConfig.depositWhitelist(), "Portal whitelist mismatch");
+    }
+
+    function _validateLegacyBridgeBlocked() internal view {
+        (bool ok, bytes memory ret) = address(input.l1StandardBridge()).staticcall(abi.encodeWithSignature("version()"));
+        require(ok, "Legacy bridge version call failed");
+        require(keccak256(bytes(abi.decode(ret, (string)))) == keccak256(bytes("2.7.0-compose-blocked")), "Legacy bridge deposits not disabled");
     }
 }

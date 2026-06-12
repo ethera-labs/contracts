@@ -38,11 +38,7 @@ interface IComposeDisputeGame is IDisputeGame, IComposeTypes {
     );
 
     event SuperblockProposed(
-        uint256 indexed superblockNumber,
-        bytes32 parentSuperblockBatchHash,
-        uint64 superblockTimestamp,
-        uint256 l1BlockNumber,
-        bytes32 superRootClaim
+        uint256 indexed superblockNumber, bytes32 parentSuperblockBatchHash, uint64 superblockTimestamp, uint256 l1BlockNumber, bytes32 superRootClaim
     );
 
     /// @notice Emitted when the game is closed.

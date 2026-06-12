@@ -19,11 +19,7 @@ interface ICETFactory {
 
     /// @notice Deploys the CET if absent; then applies metadata via one-shot initializer.
     ///         Safe to call multiple times — idempotent past first deploy.
-    function deployIfAbsent(
-        address remoteAsset,
-        uint256 remoteChainID,
-        uint8 decimals,
-        string calldata name,
-        string calldata symbol
-    ) external returns (address deployed);
+    function deployIfAbsent(address remoteAsset, uint256 remoteChainID, uint8 decimals, string calldata name, string calldata symbol)
+        external
+        returns (address deployed);
 }

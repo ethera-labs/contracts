@@ -8,28 +8,13 @@ import {ComposeDisputeGame} from "src/l1/ComposeDisputeGame.sol";
 import {IComposeAnchorStateRegistry} from "src/l1/interfaces/IComposeAnchorStateRegistry.sol";
 
 contract DeployComposeDisputeGame is Script {
-    function run(
-        address _proofVerifier,
-        bytes32 _aggregationVkey,
-        address _asr,
-        address _authorizedProposer
-    ) public returns (address composeDisputeGame) {
+    function run(address _proofVerifier, bytes32 _aggregationVkey, address _asr, address _authorizedProposer) public returns (address composeDisputeGame) {
         vm.startBroadcast();
 
         console.log("Deploying ComposeDisputeGame implementation...");
-        composeDisputeGame = address(
-            new ComposeDisputeGame(
-                _proofVerifier,
-                _aggregationVkey,
-                IComposeAnchorStateRegistry(_asr),
-                _authorizedProposer
-            )
-        );
+        composeDisputeGame = address(new ComposeDisputeGame(_proofVerifier, _aggregationVkey, IComposeAnchorStateRegistry(_asr), _authorizedProposer));
 
-        console.log(
-            "ComposeDisputeGame implementation deployed at:",
-            composeDisputeGame
-        );
+        console.log("ComposeDisputeGame implementation deployed at:", composeDisputeGame);
 
         vm.stopBroadcast();
     }

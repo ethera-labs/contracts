@@ -1,29 +1,32 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { StdStorage, stdStorage } from "forge-std/Test.sol";
-import { ComposeCommonTest } from "test/l1/setup/ComposeCommonTest.sol";
-import { Proxy } from "src/universal/Proxy.sol";
-import { ComposePortal } from "src/l1/ComposePortal.sol";
-import { ComposeL1Bridge, IComposePortalERC20 } from "src/l1/ComposeL1Bridge.sol";
-import { ComposeERC20Lockbox } from "src/l1/ComposeERC20Lockbox.sol";
-import { IComposePortal } from "src/l1/interfaces/IComposePortal.sol";
-import { IComposeERC20Lockbox } from "src/l1/interfaces/IComposeERC20Lockbox.sol";
-import { ISystemConfig } from "interfaces/L1/ISystemConfig.sol";
-import { IAnchorStateRegistry } from "interfaces/dispute/IAnchorStateRegistry.sol";
-import { ICrossDomainMessenger } from "interfaces/universal/ICrossDomainMessenger.sol";
-import { ISuperchainConfig } from "interfaces/L1/ISuperchainConfig.sol";
-import { IOptimismPortal2 } from "interfaces/L1/IOptimismPortal2.sol";
-import { IETHLockbox } from "interfaces/L1/IETHLockbox.sol";
-import { MockSystemConfig } from "test/l1/mock/MockSystemConfig.sol";
-import { MockAnchorStateRegistry } from "test/l1/mock/MockAnchorStateRegistry.sol";
-import { MockL1CrossDomainMessenger } from "test/l1/mock/MockL1CrossDomainMessenger.sol";
-import { Constants } from "src/libraries/Constants.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {StdStorage, stdStorage} from "forge-std/Test.sol";
+import {ComposeCommonTest} from "test/l1/setup/ComposeCommonTest.sol";
+import {Proxy} from "src/universal/Proxy.sol";
+import {ComposePortal} from "src/l1/ComposePortal.sol";
+import {ComposeL1Bridge, IComposePortalERC20} from "src/l1/ComposeL1Bridge.sol";
+import {ComposeERC20Lockbox} from "src/l1/ComposeERC20Lockbox.sol";
+import {IComposePortal} from "src/l1/interfaces/IComposePortal.sol";
+import {IComposeERC20Lockbox} from "src/l1/interfaces/IComposeERC20Lockbox.sol";
+import {ISystemConfig} from "interfaces/L1/ISystemConfig.sol";
+import {IAnchorStateRegistry} from "interfaces/dispute/IAnchorStateRegistry.sol";
+import {ICrossDomainMessenger} from "interfaces/universal/ICrossDomainMessenger.sol";
+import {ISuperchainConfig} from "interfaces/L1/ISuperchainConfig.sol";
+import {IOptimismPortal2} from "interfaces/L1/IOptimismPortal2.sol";
+import {IETHLockbox} from "interfaces/L1/IETHLockbox.sol";
+import {MockSystemConfig} from "test/l1/mock/MockSystemConfig.sol";
+import {MockAnchorStateRegistry} from "test/l1/mock/MockAnchorStateRegistry.sol";
+import {MockL1CrossDomainMessenger} from "test/l1/mock/MockL1CrossDomainMessenger.sol";
+import {Constants} from "src/libraries/Constants.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockERC20 is ERC20 {
     constructor(string memory name_, string memory symbol_) ERC20(name_, symbol_) {}
-    function mint(address to, uint256 amount) external { _mint(to, amount); }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
 }
 
 /// @title ComposeIntegrationSetup
@@ -53,51 +56,18 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
     event ETHBridgeInitiated(address indexed from, address indexed to, uint256 amount, bytes extraData);
     event ETHWithdrawalFinalized(address indexed from, address indexed to, uint256 amount, bytes extraData);
     event ETHBridgeFinalized(address indexed from, address indexed to, uint256 amount, bytes extraData);
-    event ERC20DepositInitiated(
-        address indexed l1Token,
-        address indexed l2Token,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
-    event ERC20BridgeInitiated(
-        address indexed localToken,
-        address indexed remoteToken,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
-    event ERC20WithdrawalFinalized(
-        address indexed l1Token,
-        address indexed l2Token,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
-    event ERC20BridgeFinalized(
-        address indexed localToken,
-        address indexed remoteToken,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
-    event ERC20TransactionUnlocked(
-        address indexed localToken,
-        address indexed to,
-        uint256 amount,
-        address indexed bridge
-    );
+    event ERC20DepositInitiated(address indexed l1Token, address indexed l2Token, address indexed from, address to, uint256 amount, bytes extraData);
+    event ERC20BridgeInitiated(address indexed localToken, address indexed remoteToken, address indexed from, address to, uint256 amount, bytes extraData);
+    event ERC20WithdrawalFinalized(address indexed l1Token, address indexed l2Token, address indexed from, address to, uint256 amount, bytes extraData);
+    event ERC20BridgeFinalized(address indexed localToken, address indexed remoteToken, address indexed from, address to, uint256 amount, bytes extraData);
+    event ERC20TransactionUnlocked(address indexed localToken, address indexed to, uint256 amount, address indexed bridge);
 
     function setUp() public virtual override {
         super.setUp();
 
         systemConfig = new MockSystemConfig(composeSuperchainConfig, guardian, L2_CHAIN_ID);
-        asr          = new MockAnchorStateRegistry();
-        messenger    = new MockL1CrossDomainMessenger();
+        asr = new MockAnchorStateRegistry();
+        messenger = new MockL1CrossDomainMessenger();
         vm.deal(address(messenger), 1000 ether);
 
         portal = _deployPortal();
@@ -112,16 +82,21 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         portal.authorizeBridge(address(bridge));
 
         token = new MockERC20("Test", "TST");
-        token.mint(alice, 1_000e18);
-        token.mint(bob, 1_000e18);
+        token.mint(alice, 1000e18);
+        token.mint(bob, 1000e18);
 
-        vm.label(address(portal),       "ComposePortal");
-        vm.label(address(bridge),       "ComposeL1Bridge");
+        vm.startPrank(proxyAdminOwner);
+        l1DepositWhitelist.setPortalDepositAllowed(address(portal), true);
+        l1DepositWhitelist.setERC20DepositAllowed(address(portal), address(token), true);
+        vm.stopPrank();
+
+        vm.label(address(portal), "ComposePortal");
+        vm.label(address(bridge), "ComposeL1Bridge");
         vm.label(address(erc20Lockbox), "ComposeERC20Lockbox");
         vm.label(address(systemConfig), "MockSystemConfig");
-        vm.label(address(asr),          "MockAnchorStateRegistry");
-        vm.label(address(messenger),    "MockL1CrossDomainMessenger");
-        vm.label(address(token),        "MockERC20");
+        vm.label(address(asr), "MockAnchorStateRegistry");
+        vm.label(address(messenger), "MockL1CrossDomainMessenger");
+        vm.label(address(token), "MockERC20");
     }
 
     function test_eth_bridgeETH_sendsMessengerMessageWithValue() public {
@@ -133,27 +108,83 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         uint32 minGas = 200_000;
         bytes memory extra = hex"1234";
 
-        bytes memory expectedMessage = abi.encodeWithSelector(
-            bridge.finalizeBridgeETH.selector,
-            alice,
-            alice,
-            amount,
-            extra
-        );
+        bytes memory expectedMessage = abi.encodeWithSelector(bridge.finalizeBridgeETH.selector, alice, alice, amount, extra);
 
-        vm.expectCall(
-            address(messenger),
-            amount,
-            abi.encodeCall(ICrossDomainMessenger.sendMessage, (fakeL2Bridge, expectedMessage, minGas))
-        );
+        vm.expectCall(address(messenger), amount, abi.encodeCall(ICrossDomainMessenger.sendMessage, (fakeL2Bridge, expectedMessage, minGas)));
 
         vm.prank(alice, alice);
-        bridge.bridgeETH{ value: amount }(minGas, extra);
+        bridge.bridgeETH{value: amount}(minGas, extra);
 
-        (, , uint32 sentMinGas, uint256 sentValue) = messenger.lastSent();
+        (,, uint32 sentMinGas, uint256 sentValue) = messenger.lastSent();
         assertEq(sentMinGas, minGas);
         assertEq(sentValue, amount);
         assertEq(messenger.callCount(), 1);
+    }
+
+    function test_whitelist_directPortalNative_revertsWhenPortalDisabled() public {
+        vm.prank(proxyAdminOwner);
+        l1DepositWhitelist.setPortalDepositAllowed(address(portal), false);
+
+        uint256 lbBefore = address(composeETHLockbox).balance;
+
+        vm.deal(alice, 1 ether);
+        vm.prank(alice, alice);
+        vm.expectRevert(ComposePortal.ComposePortal_PortalDepositsDisabled.selector);
+        portal.depositTransaction{value: 1 ether}(alice, 1 ether, 200_000, false, hex"");
+
+        assertEq(address(composeETHLockbox).balance, lbBefore);
+    }
+
+    function test_whitelist_directPortalZeroValue_revertsWhenPortalDisabled() public {
+        vm.prank(proxyAdminOwner);
+        l1DepositWhitelist.setPortalDepositAllowed(address(portal), false);
+
+        vm.prank(alice, alice);
+        vm.expectRevert(ComposePortal.ComposePortal_PortalDepositsDisabled.selector);
+        portal.depositTransaction(alice, 0, 200_000, false, hex"1234");
+    }
+
+    function test_whitelist_bridgeETH_revertsBeforeMessengerWhenPortalDisabled() public {
+        vm.prank(proxyAdminOwner);
+        bridge.setOtherBridge(address(0xBEEF));
+
+        vm.prank(proxyAdminOwner);
+        l1DepositWhitelist.setPortalDepositAllowed(address(portal), false);
+
+        uint256 lbBefore = address(composeETHLockbox).balance;
+
+        vm.prank(alice, alice);
+        vm.expectRevert(ComposeL1Bridge.ComposeBridge_PortalDepositsDisabled.selector);
+        bridge.bridgeETH{value: 1 ether}(200_000, hex"");
+
+        assertEq(messenger.callCount(), 0);
+        assertEq(address(composeETHLockbox).balance, lbBefore);
+    }
+
+    function test_whitelist_bridgeERC20_revertsBeforeTransferWhenTokenDisabled() public {
+        vm.prank(proxyAdminOwner);
+        bridge.setOtherBridge(address(0xBEEF));
+
+        vm.prank(proxyAdminOwner);
+        l1DepositWhitelist.setERC20DepositAllowed(address(portal), address(token), false);
+
+        uint256 amount = 100e18;
+        vm.prank(alice);
+        token.approve(address(bridge), amount);
+
+        uint256 aliceBefore = token.balanceOf(alice);
+        uint256 portalBefore = token.balanceOf(address(portal));
+        uint256 lbBefore = token.balanceOf(address(erc20Lockbox));
+        uint256 totalBefore = erc20Lockbox.totalDeposited(address(token));
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(ComposeL1Bridge.ComposeBridge_ERC20DepositsDisabled.selector, address(token)));
+        bridge.bridgeERC20To(address(token), address(0xABCD), bob, amount, 200_000, hex"");
+
+        assertEq(token.balanceOf(alice), aliceBefore);
+        assertEq(token.balanceOf(address(portal)), portalBefore);
+        assertEq(token.balanceOf(address(erc20Lockbox)), lbBefore);
+        assertEq(erc20Lockbox.totalDeposited(address(token)), totalBefore);
     }
 
     function test_eth_bridgeETH_emitsDepositAndBridgeInit() public {
@@ -171,7 +202,7 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         emit ETHBridgeInitiated(alice, alice, amount, extra);
 
         vm.prank(alice, alice);
-        bridge.bridgeETH{ value: amount }(minGas, extra);
+        bridge.bridgeETH{value: amount}(minGas, extra);
     }
 
     function test_eth_bridgeETHTo_routesToRecipient() public {
@@ -183,19 +214,9 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         uint32 minGas = 200_000;
         bytes memory extra = hex"cafe";
 
-        bytes memory expectedMessage = abi.encodeWithSelector(
-            bridge.finalizeBridgeETH.selector,
-            alice,
-            bob,
-            amount,
-            extra
-        );
+        bytes memory expectedMessage = abi.encodeWithSelector(bridge.finalizeBridgeETH.selector, alice, bob, amount, extra);
 
-        vm.expectCall(
-            address(messenger),
-            amount,
-            abi.encodeCall(ICrossDomainMessenger.sendMessage, (fakeL2Bridge, expectedMessage, minGas))
-        );
+        vm.expectCall(address(messenger), amount, abi.encodeCall(ICrossDomainMessenger.sendMessage, (fakeL2Bridge, expectedMessage, minGas)));
 
         vm.expectEmit(true, true, true, true, address(bridge));
         emit ETHDepositInitiated(alice, bob, amount, extra);
@@ -204,7 +225,7 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         emit ETHBridgeInitiated(alice, bob, amount, extra);
 
         vm.prank(alice);
-        bridge.bridgeETHTo{ value: amount }(bob, minGas, extra);
+        bridge.bridgeETHTo{value: amount}(bob, minGas, extra);
     }
 
     function test_eth_receive_fromEOA_bridgesToSelf() public {
@@ -215,19 +236,9 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         uint256 amount = 0.5 ether;
         uint32 minGas = 200_000;
 
-        bytes memory expectedMessage = abi.encodeWithSelector(
-            bridge.finalizeBridgeETH.selector,
-            alice,
-            alice,
-            amount,
-            bytes("")
-        );
+        bytes memory expectedMessage = abi.encodeWithSelector(bridge.finalizeBridgeETH.selector, alice, alice, amount, bytes(""));
 
-        vm.expectCall(
-            address(messenger),
-            amount,
-            abi.encodeCall(ICrossDomainMessenger.sendMessage, (fakeL2Bridge, expectedMessage, minGas))
-        );
+        vm.expectCall(address(messenger), amount, abi.encodeCall(ICrossDomainMessenger.sendMessage, (fakeL2Bridge, expectedMessage, minGas)));
 
         vm.expectEmit(true, true, true, true, address(bridge));
         emit ETHDepositInitiated(alice, alice, amount, bytes(""));
@@ -236,7 +247,7 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         emit ETHBridgeInitiated(alice, alice, amount, bytes(""));
 
         vm.prank(alice, alice);
-        (bool ok, ) = address(bridge).call{ value: amount }("");
+        (bool ok,) = address(bridge).call{value: amount}("");
         assertTrue(ok);
     }
 
@@ -248,17 +259,11 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         uint256 amount = 1 ether;
         bytes memory extra = hex"dead";
 
-        bytes memory message = abi.encodeWithSelector(
-            bridge.finalizeBridgeETH.selector,
-            alice,
-            bob,
-            amount,
-            extra
-        );
+        bytes memory message = abi.encodeWithSelector(bridge.finalizeBridgeETH.selector, alice, bob, amount, extra);
 
         uint256 bobBefore = bob.balance;
 
-        (bool ok, ) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), amount, message);
+        (bool ok,) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), amount, message);
         assertTrue(ok);
 
         assertEq(bob.balance, bobBefore + amount);
@@ -324,26 +329,14 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
 
         bytes memory packedExtra = abi.encode(token.name(), token.symbol(), token.decimals(), extra);
 
-        bytes memory expectedMessage = abi.encodeWithSelector(
-            bridge.finalizeBridgeERC20.selector,
-            remoteToken,
-            address(token),
-            alice,
-            bob,
-            amount,
-            packedExtra
-        );
+        bytes memory expectedMessage = abi.encodeWithSelector(bridge.finalizeBridgeERC20.selector, remoteToken, address(token), alice, bob, amount, packedExtra);
 
-        vm.expectCall(
-            address(messenger),
-            0,
-            abi.encodeCall(ICrossDomainMessenger.sendMessage, (fakeL2Bridge, expectedMessage, minGas))
-        );
+        vm.expectCall(address(messenger), 0, abi.encodeCall(ICrossDomainMessenger.sendMessage, (fakeL2Bridge, expectedMessage, minGas)));
 
         vm.prank(alice);
         bridge.bridgeERC20To(address(token), remoteToken, bob, amount, minGas, extra);
 
-        (, , uint32 sentMinGas, uint256 sentValue) = messenger.lastSent();
+        (,, uint32 sentMinGas, uint256 sentValue) = messenger.lastSent();
         assertEq(sentMinGas, minGas);
         assertEq(sentValue, 0);
         assertEq(messenger.callCount(), 1);
@@ -353,8 +346,7 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         bytes memory userExtra = hex"deadbeef";
         bytes memory packedExtra = _doBridgeAndGetPackedExtra(userExtra);
 
-        (string memory name_, string memory symbol_, uint8 decimals_, bytes memory userBytes) =
-            abi.decode(packedExtra, (string, string, uint8, bytes));
+        (string memory name_, string memory symbol_, uint8 decimals_, bytes memory userBytes) = abi.decode(packedExtra, (string, string, uint8, bytes));
 
         assertEq(name_, token.name());
         assertEq(symbol_, token.symbol());
@@ -378,8 +370,7 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         for (uint256 i = 0; i < args.length; i++) {
             args[i] = sentMessage[i + 4];
         }
-        (, , , , , bytes memory packed) =
-            abi.decode(args, (address, address, address, address, uint256, bytes));
+        (,,,,, bytes memory packed) = abi.decode(args, (address, address, address, address, uint256, bytes));
         return packed;
     }
 
@@ -402,17 +393,9 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         uint256 lbBefore = token.balanceOf(address(erc20Lockbox));
         uint256 totBefore = erc20Lockbox.totalDeposited(address(token));
 
-        bytes memory message = abi.encodeWithSelector(
-            bridge.finalizeBridgeERC20.selector,
-            address(token),
-            remoteToken,
-            alice,
-            bob,
-            amount,
-            hex""
-        );
+        bytes memory message = abi.encodeWithSelector(bridge.finalizeBridgeERC20.selector, address(token), remoteToken, alice, bob, amount, hex"");
 
-        (bool ok, ) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), 0, message);
+        (bool ok,) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), 0, message);
         assertTrue(ok);
 
         assertEq(token.balanceOf(bob), bobBefore + amount);
@@ -436,15 +419,7 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
 
         _enterFinalize(alice);
 
-        bytes memory message = abi.encodeWithSelector(
-            bridge.finalizeBridgeERC20.selector,
-            address(token),
-            remoteToken,
-            alice,
-            bob,
-            amount,
-            extra
-        );
+        bytes memory message = abi.encodeWithSelector(bridge.finalizeBridgeERC20.selector, address(token), remoteToken, alice, bob, amount, extra);
 
         vm.expectEmit(true, true, true, true, address(bridge));
         emit ERC20WithdrawalFinalized(address(token), remoteToken, alice, bob, amount, extra);
@@ -452,7 +427,7 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         vm.expectEmit(true, true, true, true, address(bridge));
         emit ERC20BridgeFinalized(address(token), remoteToken, alice, bob, amount, extra);
 
-        (bool ok, ) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), 0, message);
+        (bool ok,) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), 0, message);
         assertTrue(ok);
     }
 
@@ -471,20 +446,12 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
 
         _enterFinalize(alice);
 
-        bytes memory message = abi.encodeWithSelector(
-            bridge.finalizeBridgeERC20.selector,
-            address(token),
-            remoteToken,
-            alice,
-            bob,
-            amount,
-            hex""
-        );
+        bytes memory message = abi.encodeWithSelector(bridge.finalizeBridgeERC20.selector, address(token), remoteToken, alice, bob, amount, hex"");
 
         vm.expectEmit(true, true, true, true, address(portal));
         emit ERC20TransactionUnlocked(address(token), bob, amount, address(bridge));
 
-        (bool ok, ) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), 0, message);
+        (bool ok,) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), 0, message);
         assertTrue(ok);
     }
 
@@ -498,7 +465,7 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
 
         vm.deal(alice, amount);
         vm.prank(alice, alice);
-        portal.depositTransaction{ value: amount }(alice, amount, 200_000, false, hex"");
+        portal.depositTransaction{value: amount}(alice, amount, 200_000, false, hex"");
 
         assertEq(address(composeETHLockbox).balance, lbBefore + amount);
 
@@ -506,21 +473,15 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         composeETHLockbox.unlockETH(amount);
 
         vm.prank(address(portal));
-        (bool fundOk, ) = address(messenger).call{ value: amount }("");
+        (bool fundOk,) = address(messenger).call{value: amount}("");
         assertTrue(fundOk);
 
         _enterFinalize(alice);
 
-        bytes memory message = abi.encodeWithSelector(
-            bridge.finalizeBridgeETH.selector,
-            alice,
-            bob,
-            amount,
-            hex""
-        );
+        bytes memory message = abi.encodeWithSelector(bridge.finalizeBridgeETH.selector, alice, bob, amount, hex"");
 
         uint256 bobBefore = bob.balance;
-        (bool ok, ) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), amount, message);
+        (bool ok,) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), amount, message);
         assertTrue(ok);
 
         assertEq(address(composeETHLockbox).balance, lbBefore);
@@ -547,17 +508,9 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
 
         _enterFinalize(alice);
 
-        bytes memory message = abi.encodeWithSelector(
-            bridge.finalizeBridgeERC20.selector,
-            address(token),
-            remoteToken,
-            alice,
-            bob,
-            amount,
-            hex""
-        );
+        bytes memory message = abi.encodeWithSelector(bridge.finalizeBridgeERC20.selector, address(token), remoteToken, alice, bob, amount, hex"");
 
-        (bool ok, ) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), 0, message);
+        (bool ok,) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), 0, message);
         assertTrue(ok);
 
         assertEq(token.balanceOf(address(erc20Lockbox)), lbBefore);
@@ -572,7 +525,10 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         bridge.setOtherBridge(fakeL2Bridge);
 
         MockERC20 tokenB = new MockERC20("TokenB", "TB");
-        tokenB.mint(alice, 1_000e18);
+        tokenB.mint(alice, 1000e18);
+
+        vm.prank(proxyAdminOwner);
+        l1DepositWhitelist.setERC20DepositAllowed(address(portal), address(tokenB), true);
 
         uint256 amountA = 100e18;
         uint256 amountB = 250e18;
@@ -596,16 +552,8 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
 
         _enterFinalize(alice);
 
-        bytes memory messageA = abi.encodeWithSelector(
-            bridge.finalizeBridgeERC20.selector,
-            address(token),
-            remoteA,
-            alice,
-            bob,
-            amountA,
-            hex""
-        );
-        (bool okA, ) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), 0, messageA);
+        bytes memory messageA = abi.encodeWithSelector(bridge.finalizeBridgeERC20.selector, address(token), remoteA, alice, bob, amountA, hex"");
+        (bool okA,) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), 0, messageA);
         assertTrue(okA);
 
         assertEq(erc20Lockbox.totalDeposited(address(token)), 0);
@@ -624,13 +572,7 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         uint256 amount = 1 ether;
         bytes memory extra = hex"dead";
 
-        bytes memory message = abi.encodeWithSelector(
-            bridge.finalizeBridgeETH.selector,
-            alice,
-            bob,
-            amount,
-            extra
-        );
+        bytes memory message = abi.encodeWithSelector(bridge.finalizeBridgeETH.selector, alice, bob, amount, extra);
 
         vm.expectEmit(true, true, true, true, address(bridge));
         emit ETHWithdrawalFinalized(alice, bob, amount, extra);
@@ -638,7 +580,7 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         vm.expectEmit(true, true, true, true, address(bridge));
         emit ETHBridgeFinalized(alice, bob, amount, extra);
 
-        (bool ok, ) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), amount, message);
+        (bool ok,) = _relayFromOtherBridge(fakeL2Bridge, address(bridge), amount, message);
         assertTrue(ok);
     }
 
@@ -652,11 +594,10 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         portal_ = ComposePortal(payable(address(proxy)));
 
         vm.prank(proxyAdminOwner);
-        portal_.initialize(
-            ISystemConfig(address(systemConfig)),
-            IAnchorStateRegistry(address(asr)),
-            IETHLockbox(address(composeETHLockbox))
-        );
+        portal_.initialize(ISystemConfig(address(systemConfig)), IAnchorStateRegistry(address(asr)), IETHLockbox(address(composeETHLockbox)));
+
+        vm.prank(proxyAdminOwner);
+        portal_.initializeDepositWhitelist(l1DepositWhitelist);
     }
 
     function _deployErc20Lockbox(ComposePortal portal_) internal returns (ComposeERC20Lockbox lb_) {
@@ -668,9 +609,7 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
 
         vm.prank(proxyAdminOwner);
         composeProxyAdmin.upgradeAndCall(
-            payable(address(proxy)),
-            address(impl),
-            abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, portals))
+            payable(address(proxy)), address(impl), abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, portals))
         );
         lb_ = ComposeERC20Lockbox(address(proxy));
 
@@ -700,29 +639,15 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
     }
 
     function _enterFinalize(address l2Sender) internal {
-        stdstore
-            .target(address(portal))
-            .sig(portal.l2Sender.selector)
-            .checked_write(l2Sender);
+        stdstore.target(address(portal)).sig(portal.l2Sender.selector).checked_write(l2Sender);
     }
 
     function _exitFinalize() internal {
-        stdstore
-            .target(address(portal))
-            .sig(portal.l2Sender.selector)
-            .checked_write(Constants.DEFAULT_L2_SENDER);
+        stdstore.target(address(portal)).sig(portal.l2Sender.selector).checked_write(Constants.DEFAULT_L2_SENDER);
     }
 
-    function _relayFromOtherBridge(
-        address otherBridge,
-        address target,
-        uint256 value,
-        bytes memory message
-    )
-        internal
-        returns (bool ok, bytes memory ret)
-    {
-        (ok, ret) = messenger.relayFromOtherBridge{ value: value }(otherBridge, target, value, message);
+    function _relayFromOtherBridge(address otherBridge, address target, uint256 value, bytes memory message) internal returns (bool ok, bytes memory ret) {
+        (ok, ret) = messenger.relayFromOtherBridge{value: value}(otherBridge, target, value, message);
     }
 
     function test_setup_wiring() public view {
@@ -731,8 +656,11 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
         assertTrue(address(erc20Lockbox) != address(0));
 
         assertEq(address(portal.erc20Lockbox()), address(erc20Lockbox));
+        assertEq(address(portal.depositWhitelist()), address(l1DepositWhitelist));
         assertEq(address(portal.ethLockbox()), address(composeETHLockbox));
         assertTrue(portal.authorizedBridges(address(bridge)));
+        assertTrue(portal.portalDepositAllowed());
+        assertTrue(portal.erc20DepositAllowed(address(token)));
         assertEq(portal.l2Sender(), Constants.DEFAULT_L2_SENDER);
 
         assertTrue(erc20Lockbox.authorizedPortals(IComposePortal(address(portal))));
@@ -746,7 +674,11 @@ contract ComposeIntegrationSetup is ComposeCommonTest {
     }
 
     function test_setup_portalVersion() public {
-        assertEq(portal.version(), "1.0.0-compose");
+        assertEq(portal.version(), "1.1.0-compose");
+    }
+
+    function test_setup_portalDepositWhitelistSet() public {
+        assertEq(address(portal.depositWhitelist()), address(l1DepositWhitelist));
     }
 
     function test_setup_portalErc20LockboxSet() public {

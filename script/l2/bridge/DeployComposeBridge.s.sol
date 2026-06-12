@@ -74,7 +74,11 @@ contract DeployComposeBridge is Script {
         ethLiquidity = ComposeETHLiquidity(payable(_deploy(salt, abi.encodePacked(type(ComposeETHLiquidity).creationCode, abi.encode(owner)))));
         console.log("[1c] ComposeETHLiquidity      :", address(ethLiquidity));
 
-        l2l2Bridge = ComposeL2ToL2Bridge(payable(_deploy(salt, abi.encodePacked(type(ComposeL2ToL2Bridge).creationCode, abi.encode(address(mailbox), address(cetFactory), address(ethLiquidity))))));
+        l2l2Bridge = ComposeL2ToL2Bridge(
+            payable(_deploy(
+                    salt, abi.encodePacked(type(ComposeL2ToL2Bridge).creationCode, abi.encode(address(mailbox), address(cetFactory), address(ethLiquidity)))
+                ))
+        );
         console.log("[1d] ComposeL2ToL2Bridge      :", address(l2l2Bridge));
 
         l2Bridge = new L2ComposeBridge(l2Xdm, address(cetFactory), l1ChainId);

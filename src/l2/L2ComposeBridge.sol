@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.18;
 
-import { IERC165 } from "@openzeppelin/contracts/interfaces/IERC165.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-import { ICETFactory } from "src/l2/interfaces/ICETFactory.sol";
-import { IComposableERC20 } from "src/l2/interfaces/IComposableERC20.sol";
+import {ICETFactory} from "src/l2/interfaces/ICETFactory.sol";
+import {IComposableERC20} from "src/l2/interfaces/IComposableERC20.sol";
 
 /// @notice Minimal L2 CrossDomainMessenger surface used here.
 interface IL2CrossDomainMessenger {
@@ -42,42 +42,14 @@ contract L2ComposeBridge is ReentrancyGuard {
 
     event ETHBridgeInitiated(address indexed from, address indexed to, uint256 amount, bytes extraData);
     event ETHBridgeFinalized(address indexed from, address indexed to, uint256 amount, bytes extraData);
-    event ERC20BridgeInitiated(
-        address indexed localToken,
-        address indexed remoteToken,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
-    event ERC20BridgeFinalized(
-        address indexed localToken,
-        address indexed remoteToken,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
+    event ERC20BridgeInitiated(address indexed localToken, address indexed remoteToken, address indexed from, address to, uint256 amount, bytes extraData);
+    event ERC20BridgeFinalized(address indexed localToken, address indexed remoteToken, address indexed from, address to, uint256 amount, bytes extraData);
 
     /// @custom:legacy
-    event WithdrawalInitiated(
-        address indexed l1Token,
-        address indexed l2Token,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
+    event WithdrawalInitiated(address indexed l1Token, address indexed l2Token, address indexed from, address to, uint256 amount, bytes extraData);
 
     /// @custom:legacy
-    event DepositFinalized(
-        address indexed l1Token,
-        address indexed l2Token,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
+    event DepositFinalized(address indexed l1Token, address indexed l2Token, address indexed from, address to, uint256 amount, bytes extraData);
 
     event OtherBridgeSet(address indexed otherBridge);
 
@@ -134,51 +106,23 @@ contract L2ComposeBridge is ReentrancyGuard {
         _initiateBridgeETH(msg.sender, _to, msg.value, _minGasLimit, _extraData);
     }
 
-    function bridgeERC20(
-        address _localToken,
-        address _remoteToken,
-        uint256 _amount,
-        uint32 _minGasLimit,
-        bytes calldata _extraData
-    )
-        external
-        onlyEOA
-    {
+    function bridgeERC20(address _localToken, address _remoteToken, uint256 _amount, uint32 _minGasLimit, bytes calldata _extraData) external onlyEOA {
         _initiateBridgeERC20(_localToken, _remoteToken, msg.sender, msg.sender, _amount, _minGasLimit, _extraData);
     }
 
-    function bridgeERC20To(
-        address _localToken,
-        address _remoteToken,
-        address _to,
-        uint256 _amount,
-        uint32 _minGasLimit,
-        bytes calldata _extraData
-    )
-        external
-    {
+    function bridgeERC20To(address _localToken, address _remoteToken, address _to, uint256 _amount, uint32 _minGasLimit, bytes calldata _extraData) external {
         _initiateBridgeERC20(_localToken, _remoteToken, msg.sender, _to, _amount, _minGasLimit, _extraData);
     }
 
     /// @notice Finalize ETH deposit from L1. Forwards `msg.value` to `_to`.
-    function finalizeBridgeETH(
-        address _from,
-        address _to,
-        uint256 _amount,
-        bytes calldata _extraData
-    )
-        external
-        payable
-        onlyOtherBridge
-        nonReentrant
-    {
+    function finalizeBridgeETH(address _from, address _to, uint256 _amount, bytes calldata _extraData) external payable onlyOtherBridge nonReentrant {
         if (msg.value != _amount) revert ETHValueMismatch();
         if (_to == address(this) || _to == address(messenger)) revert ZeroAddress();
 
         emit DepositFinalized(address(0), address(0), _from, _to, _amount, _extraData);
         emit ETHBridgeFinalized(_from, _to, _amount, _extraData);
 
-        (bool ok, ) = _to.call{ value: _amount }("");
+        (bool ok,) = _to.call{value: _amount}("");
         if (!ok) revert ETHTransferFailed();
     }
 
@@ -190,14 +134,7 @@ contract L2ComposeBridge is ReentrancyGuard {
     /// @param _to          L2 recipient.
     /// @param _amount      Amount to mint.
     /// @param _extraData   `abi.encode(string name, string symbol, uint8 decimals, bytes user)`.
-    function finalizeBridgeERC20(
-        address _localToken,
-        address _remoteToken,
-        address _from,
-        address _to,
-        uint256 _amount,
-        bytes calldata _extraData
-    )
+    function finalizeBridgeERC20(address _localToken, address _remoteToken, address _from, address _to, uint256 _amount, bytes calldata _extraData)
         external
         onlyOtherBridge
         nonReentrant
@@ -205,8 +142,7 @@ contract L2ComposeBridge is ReentrancyGuard {
         address predicted = cetFactory.predictAddress(_remoteToken, l1ChainId);
         if (predicted != _localToken) revert LocalTokenMismatch();
 
-        (string memory name_, string memory symbol_, uint8 decimals_, bytes memory userExtra)
-            = abi.decode(_extraData, (string, string, uint8, bytes));
+        (string memory name_, string memory symbol_, uint8 decimals_, bytes memory userExtra) = abi.decode(_extraData, (string, string, uint8, bytes));
 
         address cet = cetFactory.deployIfAbsent(_remoteToken, l1ChainId, decimals_, name_, symbol_);
         IComposableERC20(cet).crosschainMint(_to, _amount);
@@ -215,15 +151,7 @@ contract L2ComposeBridge is ReentrancyGuard {
         emit ERC20BridgeFinalized(_localToken, _remoteToken, _from, _to, _amount, userExtra);
     }
 
-    function _initiateBridgeETH(
-        address _from,
-        address _to,
-        uint256 _amount,
-        uint32 _minGasLimit,
-        bytes memory _extraData
-    )
-        internal
-    {
+    function _initiateBridgeETH(address _from, address _to, uint256 _amount, uint32 _minGasLimit, bytes memory _extraData) internal {
         if (_amount == 0) revert NoETHSent();
         if (msg.value != _amount) revert ETHValueMismatch();
         if (otherBridge == address(0)) revert NotFromOtherBridge();
@@ -231,16 +159,8 @@ contract L2ComposeBridge is ReentrancyGuard {
         emit WithdrawalInitiated(address(0), address(0), _from, _to, _amount, _extraData);
         emit ETHBridgeInitiated(_from, _to, _amount, _extraData);
 
-        messenger.sendMessage{ value: _amount }(
-            otherBridge,
-            abi.encodeWithSignature(
-                "finalizeBridgeETH(address,address,uint256,bytes)",
-                _from,
-                _to,
-                _amount,
-                _extraData
-            ),
-            _minGasLimit
+        messenger.sendMessage{value: _amount}(
+            otherBridge, abi.encodeWithSignature("finalizeBridgeETH(address,address,uint256,bytes)", _from, _to, _amount, _extraData), _minGasLimit
         );
     }
 
@@ -252,10 +172,7 @@ contract L2ComposeBridge is ReentrancyGuard {
         uint256 _amount,
         uint32 _minGasLimit,
         bytes memory _extraData
-    )
-        internal
-        nonReentrant
-    {
+    ) internal nonReentrant {
         if (msg.value != 0) revert CannotSendValue();
         if (otherBridge == address(0)) revert NotFromOtherBridge();
 
@@ -273,13 +190,7 @@ contract L2ComposeBridge is ReentrancyGuard {
         messenger.sendMessage(
             otherBridge,
             abi.encodeWithSignature(
-                "finalizeBridgeERC20(address,address,address,address,uint256,bytes)",
-                _remoteToken,
-                _localToken,
-                _from,
-                _to,
-                _amount,
-                _extraData
+                "finalizeBridgeERC20(address,address,address,address,uint256,bytes)", _remoteToken, _localToken, _from, _to, _amount, _extraData
             ),
             _minGasLimit
         );

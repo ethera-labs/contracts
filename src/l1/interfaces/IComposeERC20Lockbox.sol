@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { ISemver } from "@optimism/interfaces/universal/ISemver.sol";
-import { ISuperchainConfig } from "@optimism/interfaces/L1/ISuperchainConfig.sol";
-import { IComposePortal } from "./IComposePortal.sol";
+import {ISemver} from "@optimism/interfaces/universal/ISemver.sol";
+import {ISuperchainConfig} from "@optimism/interfaces/L1/ISuperchainConfig.sol";
+import {IComposePortal} from "./IComposePortal.sol";
 
 interface IComposeERC20Lockbox is ISemver {
     error ERC20Lockbox_Paused();

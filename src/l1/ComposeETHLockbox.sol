@@ -2,18 +2,18 @@
 pragma solidity 0.8.15;
 
 // Contracts
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import { ProxyAdminOwnedBase } from "@optimism/src/L1/ProxyAdminOwnedBase.sol";
-import { ReinitializableBase } from "@optimism/src/universal/ReinitializableBase.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {ProxyAdminOwnedBase} from "@optimism/src/L1/ProxyAdminOwnedBase.sol";
+import {ReinitializableBase} from "@optimism/src/universal/ReinitializableBase.sol";
 
 // Libraries
-import { Constants } from "@optimism/src/libraries/Constants.sol";
+import {Constants} from "@optimism/src/libraries/Constants.sol";
 
 // Interfaces
-import { ISemver } from "@optimism/interfaces/universal/ISemver.sol";
-import { IOptimismPortal2 as IOptimismPortal } from "@optimism/interfaces/L1/IOptimismPortal2.sol";
-import { ISuperchainConfig } from "@optimism/interfaces/L1/ISuperchainConfig.sol";
-import { IETHLockbox } from "@optimism/interfaces/L1/IETHLockbox.sol";
+import {ISemver} from "@optimism/interfaces/universal/ISemver.sol";
+import {IOptimismPortal2 as IOptimismPortal} from "@optimism/interfaces/L1/IOptimismPortal2.sol";
+import {ISuperchainConfig} from "@optimism/interfaces/L1/ISuperchainConfig.sol";
+import {IETHLockbox} from "@optimism/interfaces/L1/IETHLockbox.sol";
 
 /// @custom:proxied true
 /// @title ComposeETHLockbox
@@ -85,13 +85,7 @@ contract ComposeETHLockbox is ProxyAdminOwnedBase, Initializable, Reinitializabl
     /// @param _portals The addresses of the portals to authorize.
     /// @dev Note: Multiple chains can share a ComposeETHLockbox contract. All portals should point to the
     ///      same SuperchainConfig for cluster-wide pause control.
-    function initialize(
-        ISuperchainConfig _superChainConfig,
-        IOptimismPortal[] calldata _portals
-    )
-        external
-        reinitializer(initVersion())
-    {
+    function initialize(ISuperchainConfig _superChainConfig, IOptimismPortal[] calldata _portals) external reinitializer(initVersion()) {
         // Initialization transactions must come from the ProxyAdmin or its owner.
         _assertOnlyProxyAdminOrProxyAdminOwner();
 
@@ -109,7 +103,7 @@ contract ComposeETHLockbox is ProxyAdminOwnedBase, Initializable, Reinitializabl
         if (superChainConfig.paused(address(0)) || superChainConfig.paused(address(this))) {
             return true;
         }
-        
+
         return false;
     }
 
@@ -171,7 +165,7 @@ contract ComposeETHLockbox is ProxyAdminOwnedBase, Initializable, Reinitializabl
         }
 
         // Using donateETH to avoid triggering a deposit.
-        sender.donateETH{ value: _value }();
+        sender.donateETH{value: _value}();
 
         // Emit the event.
         emit ETHUnlocked(sender, _value);
@@ -212,7 +206,7 @@ contract ComposeETHLockbox is ProxyAdminOwnedBase, Initializable, Reinitializabl
 
         // Receive the liquidity.
         uint256 balance = address(this).balance;
-        IETHLockbox(_lockbox).receiveLiquidity{ value: balance }();
+        IETHLockbox(_lockbox).receiveLiquidity{value: balance}();
 
         // Emit the event.
         emit LiquidityMigrated(_lockbox, balance);

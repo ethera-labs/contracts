@@ -24,7 +24,7 @@ contract MockL1CrossDomainMessenger {
     event SendMessageCalled(address indexed target, bytes message, uint32 minGasLimit, uint256 value);
 
     function sendMessage(address _target, bytes calldata _message, uint32 _minGasLimit) external payable {
-        lastSent = Sent({ target: _target, message: _message, minGasLimit: _minGasLimit, value: msg.value });
+        lastSent = Sent({target: _target, message: _message, minGasLimit: _minGasLimit, value: msg.value});
         callCount++;
         emit SendMessageCalled(_target, _message, _minGasLimit, msg.value);
     }
@@ -36,20 +36,15 @@ contract MockL1CrossDomainMessenger {
     /// @notice Relays a message as if it came from `_sender` on the other chain. Sets
     ///         `xDomainMessageSender`, calls `_target.call{value}(_message)`, then clears.
     /// @dev Used by finalize-path tests to drive `onlyOtherBridge`-gated functions.
-    function relayFromOtherBridge(
-        address _sender,
-        address _target,
-        uint256 _value,
-        bytes calldata _message
-    )
+    function relayFromOtherBridge(address _sender, address _target, uint256 _value, bytes calldata _message)
         external
         payable
         returns (bool ok, bytes memory ret)
     {
         xDomainMessageSender = _sender;
-        (ok, ret) = _target.call{ value: _value }(_message);
+        (ok, ret) = _target.call{value: _value}(_message);
         xDomainMessageSender = address(0);
     }
 
-    receive() external payable { }
+    receive() external payable {}
 }

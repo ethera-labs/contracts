@@ -30,7 +30,7 @@ git submodule update --init --recursive
 forge build
 ```
 
-**Compose shared infrastructure** must already be deployed and `config.json` must have the `l1.deployed` section filled in. If you are joining an existing cluster (not the one who ran `just l1-deploy-shared`), ask the cluster operator for their `config.json` — the `l1.deployed.*` addresses are fixed for the cluster and shared by all rollups.
+**Compose shared infrastructure** must already be deployed and `config.json` must have the `l1.deployed` section filled in, including `l1.deployed.depositWhitelist`. If you are joining an existing cluster (not the one who ran `just l1-deploy-shared`), ask the cluster operator for their `config.json` — the `l1.deployed.*` addresses are fixed for the cluster and shared by all rollups.
 
 If you need to deploy shared infra yourself, see [Deploy Compose Bridge](deploy-compose-bridge.md) first.
 
@@ -115,6 +115,9 @@ ROLLUP_OWNER_KEY=0x<rollup-proxy-admin-owner-private-key>
 # Private key for l1.proxyAdminOwner — signs portal authorization in the shared lockbox
 PROXY_ADMIN_OWNER_KEY=0x<compose-proxy-admin-owner-private-key>
 
+# Private key for l1.depositWhitelistAdmin — signs allow/block policy transactions after migration
+DEPOSIT_WHITELIST_ADMIN_KEY=0x<deposit-whitelist-admin-private-key>
+
 # V3 only: key for deploying new implementation contracts (can be any funded wallet)
 DEPLOYER_KEY=0x<deployer-private-key>
 ```
@@ -126,8 +129,9 @@ DEPLOYER_KEY=0x<deployer-private-key>
 
 ## V4 Migration (OP Stack 4.x / 5.x)
 
-Minimal migration — only state updates, no contract upgrades (except auto-upgrading portal to
-`OptimismPortalInterop` if it isn't already).
+Minimal migration plus required deposit-blocking upgrades. The script upgrades the portal to the
+whitelist-aware `ComposePortal` when needed, replaces legacy `L1StandardBridge` deposits with a
+blocked implementation, then migrates settlement state to shared Compose infrastructure.
 
 ### Dry run first
 
@@ -148,10 +152,15 @@ just l1-migrate-v4 chain-100003
 
 | Step | Action | Signer |
 |---|---|---|
-| 0 | Detect portal type. If not `OptimismPortalInterop`, deploy new impl and upgrade proxy | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
-| 1 | Enable `ETH_LOCKBOX` feature in `SystemConfig` (skips if already enabled) | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
-| 2 | Authorize portal in `ComposeETHLockbox` (skips if already authorized) | Compose ProxyAdmin owner (`PROXY_ADMIN_OWNER_KEY`) |
-| 3 | Call `migrateToSuperRoots()` — sets new lockbox + ASR, enables super-roots mode, migrates ETH atomically (skips if already migrated) | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
+| 0 | Detect portal type. If whitelist is not wired, deploy `ComposePortal` and `upgradeAndCall initializeDepositWhitelist` | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
+| 1 | Upgrade legacy `L1StandardBridge` proxy to `ComposeL1StandardBridge` so new legacy deposits revert | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
+| 2 | Enable `ETH_LOCKBOX` feature in `SystemConfig` (skips if already enabled) | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
+| 3 | Authorize portal in `ComposeETHLockbox` (skips if already authorized) | Compose ProxyAdmin owner (`PROXY_ADMIN_OWNER_KEY`) |
+| 4 | Call `migrateToSuperRoots()` — sets new lockbox + ASR, enables super-roots mode, migrates ETH atomically (skips if already migrated) | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
+
+After Step 0, new portal deposits are default-denied until `DEPOSIT_WHITELIST_ROLE` allows the
+portal. After Step 1, legacy `L1StandardBridge` deposit entry points stay disabled even if the
+portal is later allowed.
 
 ---
 
@@ -178,12 +187,12 @@ just l1-migrate-v3 chain-100003
 
 | Step | Action | Signer |
 |---|---|---|
-| 1 | Deploy new V4 implementations (SystemConfig, OptimismPortalInterop, XDM, L1StandardBridge, L1ERC721Bridge) | `DEPLOYER_KEY` |
+| 1 | Deploy new V4 implementations (`SystemConfig`, `ComposePortal`, XDM, deposit-blocking `ComposeL1StandardBridge`, `L1ERC721Bridge`) | `DEPLOYER_KEY` |
 | 2 | Upgrade `SystemConfig` — sets `l2ChainId` and `superchainConfig` | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
 | 3 | Enable `ETH_LOCKBOX` feature in `SystemConfig` | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
-| 4 | Upgrade `OptimismPortal2` to `OptimismPortalInterop` impl | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
+| 4 | Upgrade `OptimismPortal2` to `ComposePortal` and wire `L1DepositWhitelist` | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
 | 5 | Authorize portal in `ComposeETHLockbox` | Compose ProxyAdmin owner (`PROXY_ADMIN_OWNER_KEY`) |
-| 6 | Upgrade `L1CrossDomainMessenger`, `L1StandardBridge`, `L1ERC721Bridge` | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
+| 6 | Upgrade `L1CrossDomainMessenger`, deposit-blocking `L1StandardBridge`, `L1ERC721Bridge` | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
 | 7 | Call `migrateToSuperRoots()` + `migrateLiquidity()` atomically | Rollup ProxyAdmin owner (`ROLLUP_OWNER_KEY`) |
 
 Steps 5 and 7 are combined into a single `migrateToSuperRoots()` call because `migrateLiquidity()` requires `ethLockbox` to be set first — both happen atomically in the same transaction.
@@ -213,6 +222,15 @@ cast balance <PORTAL_PROXY> --rpc-url $RPC_URL
 
 # Portal authorized in lockbox
 cast call <ETH_LOCKBOX> "authorizedPortals(address)(bool)" <PORTAL_PROXY> --rpc-url $RPC_URL
+
+# Portal wired to deposit whitelist
+cast call <PORTAL_PROXY> "depositWhitelist()(address)" --rpc-url $RPC_URL
+
+# Current portal policy. Defaults to false after migration.
+cast call <PORTAL_PROXY> "portalDepositAllowed()(bool)" --rpc-url $RPC_URL
+
+# Legacy deposits disabled
+cast call <L1_STANDARD_BRIDGE> "version()(string)" --rpc-url $RPC_URL
 ```
 
 Expected results:
@@ -222,6 +240,19 @@ Expected results:
 - `superRootsActive` → `true`
 - `cast balance` → `0`
 - `authorizedPortals` → `true`
+- `depositWhitelist` → Compose whitelist address from `config.json` (`l1.deployed.depositWhitelist`)
+- `portalDepositAllowed` → `false` until explicitly allowed by `DEPOSIT_WHITELIST_ROLE`
+- legacy bridge `version` → `2.7.0-compose-blocked`
+
+To allow new deposits after migration:
+
+```sh
+just l1-whitelist-portal chain-100003 true
+just l1-whitelist-erc20 chain-100003 0x<Token> true
+```
+
+The portal flag gates all L1-to-L2 deposit messages, including native deposits and zero-value
+messages. ERC-20 deposits require both the portal flag and the per-token flag.
 
 ---
 
@@ -231,58 +262,38 @@ The migration above covers ETH settlement. To also enable ERC-20 deposits and wi
 the shared `ComposeERC20Lockbox`, run `UpgradeToComposeBridge` after the migration completes.
 
 This script:
-- Upgrades the portal proxy to `ComposePortal`
+- Upgrades or verifies the portal proxy as `ComposePortal`
 - Deploys a `ComposeL1Bridge` proxy (the L1 counterpart of `L2ComposeBridge`)
 - Deploys or reuses a `ComposeERC20Lockbox`
+- Wires the shared deposit whitelist into the portal
 - Wires bridge ↔ portal ↔ lockbox authorizations
+- Ensures the legacy `L1StandardBridge` deposit implementation is blocked
 
-### 1. Create a config file for the upgrade
+The script reads from `config.json` using `ROLLUP_NAME`. The ETH_LOCKBOX feature must already be
+enabled, i.e. the migration above must have completed successfully.
 
-The script reads from a **separate JSON file** (not `config.json`). Keys must be in alphabetical order:
-
-```json
-{
-  "composeAdminOwner": "0x...",
-  "composeProxyAdmin": "0x...",
-  "erc20LockboxProxy": "0x0000000000000000000000000000000000000000",
-  "l1Xdm": "0x...",
-  "portalProxy": "0x...",
-  "rollupAdminOwner": "0x...",
-  "rollupProxyAdmin": "0x...",
-  "superchainConfig": "0x...",
-  "systemConfig": "0x..."
-}
-```
-
-| Field | Source |
-|---|---|
-| `composeAdminOwner` | `l1.proxyAdminOwner` in `config.json` |
-| `composeProxyAdmin` | `l1.deployed.proxyAdmin` in `config.json` |
-| `erc20LockboxProxy` | Zero address to deploy a new one; or pass an existing proxy address |
-| `l1Xdm` | `rollups.<name>.l1.l1CrossDomainMessenger` in `config.json` |
-| `portalProxy` | `rollups.<name>.l1.portalProxy` in `config.json` |
-| `rollupAdminOwner` | `rollups.<name>.l1.proxyAdminOwner` in `config.json` |
-| `rollupProxyAdmin` | `rollups.<name>.l1.proxyAdmin` in `config.json` |
-| `superchainConfig` | `l1.deployed.superchainConfig` in `config.json` |
-| `systemConfig` | `rollups.<name>.l1.systemConfig` in `config.json` |
-
-Save the file as e.g. `upgrade-compose-bridge-<rollup>.json`.
-
-**The ETH_LOCKBOX feature must already be enabled** (i.e., the migration above must have completed successfully) before running this script.
-
-### 2. Run
+### 1. Run
 
 ```sh
-just l1-upgrade-compose-bridge upgrade-compose-bridge-chain-100003.json true   # dry run
-just l1-upgrade-compose-bridge upgrade-compose-bridge-chain-100003.json        # live run
+just l1-upgrade-compose-bridge chain-100003 true   # dry run
+just l1-upgrade-compose-bridge chain-100003        # live run
 ```
 
-This script broadcasts as **two addresses** — `rollupAdminOwner` and `composeAdminOwner`. Both
-private keys must be passed:
+This script broadcasts as two addresses from `.env`: `ROLLUP_OWNER_KEY` for rollup proxy upgrades
+and `PROXY_ADMIN_OWNER_KEY` for shared Compose ownership actions.
 
 ```sh
-# Alternatively, run forge directly with both keys:
-forge script script/l1/deploy/UpgradeToComposeBridge.s.sol --sig "run(string,bool)" upgrade-compose-bridge-chain-100003.json false --private-key $ROLLUP_OWNER_KEY --private-key $PROXY_ADMIN_OWNER_KEY --rpc-url $RPC_URL --broadcast --slow
+# Direct forge equivalent:
+ROLLUP_NAME=chain-100003 forge script script/l1/deploy/UpgradeToComposeBridge.s.sol --tc UpgradeToComposeBridge --sig "run(bool)" false --rpc-url $RPC_URL --broadcast --slow
+```
+
+### 2. Allow deposits explicitly
+
+The upgrade keeps deposits default-denied. Enable only the paths that should be live:
+
+```sh
+just l1-whitelist-portal chain-100003 true
+just l1-whitelist-erc20 chain-100003 0x<Token> true
 ```
 
 ### 3. Wire L1 ↔ L2 bridges
@@ -300,7 +311,7 @@ COMPOSE_ETH_LOCKBOX=0x<l1.deployed.ethLockbox>
 Then run:
 
 ```sh
-just l1-wire-bridges
+just l1-wire-bridges chain-100003
 ```
 
 This sets `ComposeL1Bridge.otherBridge` → L2 bridge and is idempotent (skips if already set).
@@ -313,9 +324,10 @@ These scripts handle specific upgrade steps in isolation. Only needed outside a 
 
 ### `just l1-upgrade-portal-interop <rollup> [dryRun]`
 
-Upgrades a standard `OptimismPortal2` to `OptimismPortalInterop` without running the full
-migration. Useful if you want to separate the portal upgrade from the state migration, or if
-step 0 of V4 migration failed and you want to retry it standalone.
+Upgrades a standard `OptimismPortal2` or upstream interop portal to the whitelist-aware
+`ComposePortal` without running the full migration. Useful if you want to retry step 0 of V4
+migration standalone. The upgrade wires `l1.deployed.depositWhitelist` and leaves deposits
+default-denied.
 
 Uses `ROLLUP_OWNER_KEY`.
 
@@ -323,7 +335,8 @@ Uses `ROLLUP_OWNER_KEY`.
 
 Upgrades the portal proxy to `ComposePortal` with a given proof maturity delay. This is an
 alternative to `UpgradeToComposeBridge` if you want to upgrade the portal implementation alone
-without deploying the L1 bridge or ERC-20 lockbox.
+without deploying the L1 bridge or ERC-20 lockbox. The upgrade wires
+`l1.deployed.depositWhitelist` and leaves deposits default-denied.
 
 Uses `ROLLUP_OWNER_KEY`.
 
@@ -339,5 +352,9 @@ Uses `ROLLUP_OWNER_KEY`.
 | `Compose ASR not set` | `l1.deployed.*` fields empty or contain placeholder `"0x..."` in `config.json` | Obtain the filled `config.json` from the cluster operator, or run `SAVE_DEPLOY_OUTPUT=true just l1-deploy-shared` |
 | `Portal not authorized in lockbox` after migration | Ran dry run only, never ran live | Re-run without the `true` flag |
 | `RollupConfig: ROLLUP_NAME not set` | `ROLLUP_NAME` env var missing or doesn't match a key in `config.json` | Check `.env` and that the rollup key in `config.json` matches exactly |
-| `ETH_LOCKBOX feature not enabled` on `UpgradeToComposeBridge` | Phase 1 migration (`just l1-migrate-v4`) not completed | Complete the V4 migration first |
+| `Portal whitelist mismatch` | Portal was not wired to `l1.deployed.depositWhitelist` | Re-run the migration/upgrade script and check rollup proxy admin ownership |
+| `Legacy bridge deposits not disabled` | `L1StandardBridge` was not upgraded to the blocking implementation | Re-run the migration/upgrade script and verify `rollups.<name>.l1.l1StandardBridge` |
+| `ComposeBridge_PortalDepositsDisabled` | Portal path is still default-denied | Run `just l1-whitelist-portal <rollup> true` from the whitelist admin wallet |
+| `ComposeBridge_ERC20DepositsDisabled` | Token is not allowed for this portal | Run `just l1-whitelist-erc20 <rollup> <token> true` |
+| `ETH_LOCKBOX feature not enabled` on `UpgradeToComposeBridge` | Rollup migration (`just l1-migrate-v4`) not completed | Complete the V4 migration first |
 | `L1Bridge.otherBridge mismatch` on `just l1-wire-bridges` | `L1_COMPOSE_BRIDGE` already wired to a different L2 bridge | Check which L2 bridge was deployed; set `L2_COMPOSE_BRIDGE` to match |

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { ComposeCommonTest } from "test/l1/setup/ComposeCommonTest.sol";
-import { ISuperchainConfig } from "@optimism/interfaces/L1/ISuperchainConfig.sol";
-import { ComposeERC20Lockbox } from "src/l1/ComposeERC20Lockbox.sol";
-import { IComposeERC20Lockbox } from "src/l1/interfaces/IComposeERC20Lockbox.sol";
-import { IComposePortal } from "src/l1/interfaces/IComposePortal.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { Proxy } from "src/universal/Proxy.sol";
+import {ComposeCommonTest} from "test/l1/setup/ComposeCommonTest.sol";
+import {ISuperchainConfig} from "@optimism/interfaces/L1/ISuperchainConfig.sol";
+import {ComposeERC20Lockbox} from "src/l1/ComposeERC20Lockbox.sol";
+import {IComposeERC20Lockbox} from "src/l1/interfaces/IComposeERC20Lockbox.sol";
+import {IComposePortal} from "src/l1/interfaces/IComposePortal.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Proxy} from "src/universal/Proxy.sol";
 
 contract MockERC20 is ERC20 {
     constructor(string memory name_, string memory symbol_) ERC20(name_, symbol_) {}
@@ -57,9 +57,7 @@ contract ComposeERC20LockboxTest is ComposeCommonTest {
 
         vm.prank(proxyAdminOwner);
         composeProxyAdmin.upgradeAndCall(
-            payable(address(proxy)),
-            address(impl),
-            abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, portals))
+            payable(address(proxy)), address(impl), abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, portals))
         );
 
         erc20Lockbox = ComposeERC20Lockbox(address(proxy));
@@ -241,9 +239,7 @@ contract ComposeERC20LockboxTest is ComposeCommonTest {
         IComposePortal[] memory emptyPortals = new IComposePortal[](0);
         vm.prank(proxyAdminOwner);
         composeProxyAdmin.upgradeAndCall(
-            payable(address(proxy2)),
-            address(impl2),
-            abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, emptyPortals))
+            payable(address(proxy2)), address(impl2), abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, emptyPortals))
         );
         ComposeERC20Lockbox lockbox2 = ComposeERC20Lockbox(address(proxy2));
 
@@ -263,9 +259,7 @@ contract ComposeERC20LockboxTest is ComposeCommonTest {
         IComposePortal[] memory emptyPortals = new IComposePortal[](0);
         vm.prank(proxyAdminOwner);
         composeProxyAdmin.upgradeAndCall(
-            payable(address(proxy2)),
-            address(impl2),
-            abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, emptyPortals))
+            payable(address(proxy2)), address(impl2), abi.encodeCall(ComposeERC20Lockbox.initialize, (composeSuperchainConfig, emptyPortals))
         );
 
         vm.prank(alice);

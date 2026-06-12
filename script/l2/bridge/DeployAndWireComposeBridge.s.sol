@@ -56,7 +56,11 @@ contract DeployAndWireComposeBridge is Script {
         cetFactory.initialize(owner);
         mailbox = UniversalBridgeMailbox(_deploy(salt, abi.encodePacked(type(UniversalBridgeMailbox).creationCode, abi.encode(coordinator, owner))));
         ethLiquidity = ComposeETHLiquidity(payable(_deploy(salt, abi.encodePacked(type(ComposeETHLiquidity).creationCode, abi.encode(owner)))));
-        l2l2Bridge = ComposeL2ToL2Bridge(payable(_deploy(salt, abi.encodePacked(type(ComposeL2ToL2Bridge).creationCode, abi.encode(address(mailbox), address(cetFactory), address(ethLiquidity))))));
+        l2l2Bridge = ComposeL2ToL2Bridge(
+            payable(_deploy(
+                    salt, abi.encodePacked(type(ComposeL2ToL2Bridge).creationCode, abi.encode(address(mailbox), address(cetFactory), address(ethLiquidity)))
+                ))
+        );
 
         console.log("\n[1] CetFactory             :", address(cetFactory));
         console.log("    UniversalBridgeMailbox  :", address(mailbox));

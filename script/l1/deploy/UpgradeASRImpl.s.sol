@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { Script } from "forge-std/Script.sol";
-import { console2 as console } from "forge-std/console2.sol";
+import {Script} from "forge-std/Script.sol";
+import {console2 as console} from "forge-std/console2.sol";
 
-import { IProxyAdmin } from "interfaces/universal/IProxyAdmin.sol";
-import { ComposeAnchorStateRegistry } from "src/l1/ComposeAnchorStateRegistry.sol";
+import {IProxyAdmin} from "interfaces/universal/IProxyAdmin.sol";
+import {ComposeAnchorStateRegistry} from "src/l1/ComposeAnchorStateRegistry.sol";
 
 /// @title UpgradeASRImpl
 /// @notice Upgrade of an existing ComposeAnchorStateRegistry proxy to a fresh
@@ -18,10 +18,10 @@ import { ComposeAnchorStateRegistry } from "src/l1/ComposeAnchorStateRegistry.so
 ///   DG_FINALITY_DELAY      new dispute game finality delay in seconds
 contract UpgradeASRImpl is Script {
     function run() external returns (address newImplAddr) {
-        address proxyAdmin      = vm.envAddress("PROXY_ADMIN");
+        address proxyAdmin = vm.envAddress("PROXY_ADMIN");
         address proxyAdminOwner = vm.envAddress("PROXY_ADMIN_OWNER");
-        address asrProxy        = vm.envAddress("ASR_PROXY");
-        uint256 finalityDelay   = vm.envUint("DG_FINALITY_DELAY");
+        address asrProxy = vm.envAddress("ASR_PROXY");
+        uint256 finalityDelay = vm.envUint("DG_FINALITY_DELAY");
 
         vm.startBroadcast(proxyAdminOwner);
 
