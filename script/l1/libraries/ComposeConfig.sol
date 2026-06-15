@@ -28,9 +28,9 @@ library ComposeConfig {
         return addr;
     }
 
-    function depositWhitelistDefaultAdmin() internal view returns (address) {
-        address addr = vm.parseJsonAddress(jsonContent(), ".l1.depositWhitelistDefaultAdmin");
-        require(addr != address(0), "ComposeConfig: depositWhitelistDefaultAdmin not set in config.json");
+    function defaultAdmin() internal view returns (address) {
+        address addr = vm.parseJsonAddress(jsonContent(), ".l1.defaultAdmin");
+        require(addr != address(0), "ComposeConfig: defaultAdmin not set in config.json");
         return addr;
     }
 
@@ -144,7 +144,7 @@ library ComposeConfig {
     function validateConfig() internal view {
         guardian();
         proxyAdminOwner();
-        depositWhitelistDefaultAdmin();
+        defaultAdmin();
         depositWhitelistAdmin();
         authorizedProposer();
         sp1Verifier();

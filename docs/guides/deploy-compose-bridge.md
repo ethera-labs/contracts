@@ -56,7 +56,7 @@ Deploy once per Compose cluster. All rollups that join the cluster will share th
   "l1": {
     "guardian": "0x...",
     "proxyAdminOwner": "0x...",
-    "depositWhitelistDefaultAdmin": "0x...",
+    "defaultAdmin": "0x...",
     "depositWhitelistAdmin": "0x...",
     "authorizedProposer": "0x...",
     "sp1Verifier": "0x...",
@@ -73,7 +73,7 @@ Deploy once per Compose cluster. All rollups that join the cluster will share th
 |---|---|
 | `guardian` | Address that can pause the SuperchainConfig |
 | `proxyAdminOwner` | Owner of the shared ProxyAdmin (multisig recommended for production) |
-| `depositWhitelistDefaultAdmin` | Address that receives `DEFAULT_ADMIN_ROLE` on `L1DepositWhitelist` and only grants/revokes roles |
+| `defaultAdmin` | Address that receives `DEFAULT_ADMIN_ROLE` on `L1DepositWhitelist` and only grants/revokes roles |
 | `depositWhitelistAdmin` | Address that receives `DEPOSIT_WHITELIST_ROLE` and can allow/block portal and ERC-20 deposits |
 | `authorizedProposer` | Address authorized to propose dispute games |
 | `sp1Verifier` | SP1 verifier contract address on L1 |
@@ -375,7 +375,8 @@ Expected legacy bridge version after migration/upgrade: `2.7.0-compose-blocked`.
 |---|---|---|
 | `Guardian not set` | `guardian` missing in `config.json` `l1.*` | Add `guardian` address |
 | `Aggregation vkey not set` | `aggregationVkey` missing or zero | Add correct SP1 vkey |
-| `Deposit whitelist admin not set` | `depositWhitelistDefaultAdmin` or `depositWhitelistAdmin` is zero | Set both addresses in `config.json` before `l1-deploy-shared` |
+| `Default admin not set` | `defaultAdmin` is zero | Set `defaultAdmin` in `config.json` before `l1-deploy-shared` |
+| `Deposit whitelist admin not set` | `depositWhitelistAdmin` is zero | Set `depositWhitelistAdmin` in `config.json` before `l1-deploy-shared` |
 | `ComposeBridge_PortalDepositsDisabled` | Portal path is still default-denied | Run `just l1-whitelist-portal <rollup> true` from the whitelist admin wallet |
 | `ComposeBridge_ERC20DepositsDisabled` | Token is not allowed for this portal | Run `just l1-whitelist-erc20 <rollup> <token> true` |
 | `L2Bridge.otherBridge mismatch` | `otherBridge` already set to a different address | Check which L1 bridge was used at deploy time |

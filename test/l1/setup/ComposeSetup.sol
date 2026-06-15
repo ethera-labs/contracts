@@ -93,7 +93,7 @@ abstract contract ComposeSetup is Test {
         DeploySharedInfraInput testInput = new DeploySharedInfraInput();
         testInput.set(testInput.guardian.selector, guardian);
         testInput.set(testInput.proxyAdminOwner.selector, proxyAdminOwner);
-        testInput.set(testInput.depositWhitelistDefaultAdmin.selector, proxyAdminOwner);
+        testInput.set(testInput.defaultAdmin.selector, proxyAdminOwner);
         testInput.set(testInput.depositWhitelistAdmin.selector, proxyAdminOwner);
         testInput.set(testInput.authorizedProposer.selector, authorizedProposer);
         testInput.set(testInput.sp1Verifier.selector, address(mockSP1Verifier));

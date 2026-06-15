@@ -47,7 +47,7 @@ All scripts read from a single `config.json`. Private keys always come from the 
   "l1": {
     "guardian": "0x...",
     "proxyAdminOwner": "0x...",
-    "depositWhitelistDefaultAdmin": "0x...",
+    "defaultAdmin": "0x...",
     "depositWhitelistAdmin": "0x...",
     "authorizedProposer": "0x...",
     "sp1Verifier": "0x...",
@@ -95,7 +95,7 @@ All scripts read from a single `config.json`. Private keys always come from the 
 
 **`l1`** — shared infrastructure config. Static fields are filled manually before deploy. `deployed.*` fields are written automatically by `just l1-deploy-shared` when `SAVE_DEPLOY_OUTPUT=true`.
 
-`depositWhitelistDefaultAdmin` receives `DEFAULT_ADMIN_ROLE` on `L1DepositWhitelist` and is used only to grant/revoke roles. `depositWhitelistAdmin` receives `DEPOSIT_WHITELIST_ROLE` and can allow/block portal and ERC-20 deposit paths. These may be the same multisig for MVP, but the roles are separate.
+`defaultAdmin` receives `DEFAULT_ADMIN_ROLE` on `L1DepositWhitelist` and is used only to grant/revoke roles. `depositWhitelistAdmin` receives `DEPOSIT_WHITELIST_ROLE` and can allow/block portal and ERC-20 deposit paths. These may be the same multisig for MVP, but the roles are separate.
 
 **`rollups`** — one section per rollup. `l1.*` fields are the existing OP Stack contracts on L1 that the migration scripts will upgrade.
 

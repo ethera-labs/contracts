@@ -35,7 +35,7 @@ contract DeploySharedInfraInput is BaseDeployIO {
     // Governance addresses
     address internal _guardian;
     address internal _proxyAdminOwner;
-    address internal _depositWhitelistDefaultAdmin;
+    address internal _defaultAdmin;
     address internal _depositWhitelistAdmin;
     address internal _authorizedProposer;
 
@@ -54,7 +54,7 @@ contract DeploySharedInfraInput is BaseDeployIO {
 
         if (sel == this.guardian.selector) _guardian = val;
         else if (sel == this.proxyAdminOwner.selector) _proxyAdminOwner = val;
-        else if (sel == this.depositWhitelistDefaultAdmin.selector) _depositWhitelistDefaultAdmin = val;
+        else if (sel == this.defaultAdmin.selector) _defaultAdmin = val;
         else if (sel == this.depositWhitelistAdmin.selector) _depositWhitelistAdmin = val;
         else if (sel == this.authorizedProposer.selector) _authorizedProposer = val;
         else if (sel == this.sp1Verifier.selector) _sp1Verifier = val;
@@ -89,9 +89,9 @@ contract DeploySharedInfraInput is BaseDeployIO {
         return _authorizedProposer;
     }
 
-    function depositWhitelistDefaultAdmin() public view returns (address) {
-        require(_depositWhitelistDefaultAdmin != address(0), "DeploySharedInfraInput: depositWhitelistDefaultAdmin not set");
-        return _depositWhitelistDefaultAdmin;
+    function defaultAdmin() public view returns (address) {
+        require(_defaultAdmin != address(0), "DeploySharedInfraInput: defaultAdmin not set");
+        return _defaultAdmin;
     }
 
     function depositWhitelistAdmin() public view returns (address) {
@@ -297,7 +297,7 @@ contract DeploySharedInfra is Script {
         // All required config values will revert if not set in config.json
         envInput.set(envInput.guardian.selector, ComposeConfig.guardian());
         envInput.set(envInput.proxyAdminOwner.selector, ComposeConfig.proxyAdminOwner());
-        envInput.set(envInput.depositWhitelistDefaultAdmin.selector, ComposeConfig.depositWhitelistDefaultAdmin());
+        envInput.set(envInput.defaultAdmin.selector, ComposeConfig.defaultAdmin());
         envInput.set(envInput.depositWhitelistAdmin.selector, ComposeConfig.depositWhitelistAdmin());
         envInput.set(envInput.authorizedProposer.selector, ComposeConfig.authorizedProposer());
         envInput.set(envInput.sp1Verifier.selector, ComposeConfig.sp1Verifier());
@@ -434,7 +434,7 @@ contract DeploySharedInfra is Script {
         proxyAdmin.upgradeAndCall(
             payable(address(whitelistProxy)),
             address(output.l1DepositWhitelistImpl()),
-            abi.encodeCall(L1DepositWhitelist.initialize, (input.depositWhitelistDefaultAdmin(), input.depositWhitelistAdmin()))
+            abi.encodeCall(L1DepositWhitelist.initialize, (input.defaultAdmin(), input.depositWhitelistAdmin()))
         );
         ComposeDeployUtils.label(address(whitelistProxy), "L1DepositWhitelistProxy");
         console.log("  L1DepositWhitelist proxy:", address(whitelistProxy));
@@ -493,7 +493,7 @@ contract DeploySharedInfra is Script {
     function assertValidInput() internal view {
         require(input.guardian() != address(0), "Guardian not set");
         require(input.proxyAdminOwner() != address(0), "ProxyAdmin owner not set");
-        require(input.depositWhitelistDefaultAdmin() != address(0), "Deposit whitelist default admin not set");
+        require(input.defaultAdmin() != address(0), "Default admin not set");
         require(input.depositWhitelistAdmin() != address(0), "Deposit whitelist admin not set");
         require(input.authorizedProposer() != address(0), "Authorized proposer not set");
         require(input.sp1Verifier() != address(0), "SP1 verifier not set");
@@ -501,7 +501,7 @@ contract DeploySharedInfra is Script {
         console.log("\nInput Validation:");
         console.log("  Guardian:", input.guardian());
         console.log("  ProxyAdmin Owner:", input.proxyAdminOwner());
-        console.log("  Deposit Whitelist Default Admin:", input.depositWhitelistDefaultAdmin());
+        console.log("  Default Admin:", input.defaultAdmin());
         console.log("  Deposit Whitelist Admin:", input.depositWhitelistAdmin());
         console.log("  Authorized Proposer:", input.authorizedProposer());
         console.log("  SP1 Verifier:", input.sp1Verifier());
@@ -538,7 +538,7 @@ contract DeploySharedInfra is Script {
         require(address(lockbox.superchainConfig()) == address(sc), "Lockbox SuperchainConfig mismatch");
 
         L1DepositWhitelist whitelist = output.l1DepositWhitelistProxy();
-        require(whitelist.hasRole(whitelist.DEFAULT_ADMIN_ROLE(), input.depositWhitelistDefaultAdmin()), "Whitelist default admin mismatch");
+        require(whitelist.hasRole(whitelist.DEFAULT_ADMIN_ROLE(), input.defaultAdmin()), "Whitelist default admin mismatch");
         require(whitelist.hasRole(whitelist.DEPOSIT_WHITELIST_ROLE(), input.depositWhitelistAdmin()), "Whitelist admin mismatch");
 
         console.log("\nOutput Validation: All checks passed!");
