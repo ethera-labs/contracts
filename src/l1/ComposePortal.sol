@@ -157,6 +157,11 @@ contract ComposePortal is ComposePortalInterop {
         IERC20(_localToken).safeTransfer(address(erc20Lockbox), _amount);
         erc20Lockbox.lockERC20(_localToken, _amount);
 
+        IL1DepositWhitelist whitelist = depositWhitelist;
+        if (address(whitelist) != address(0)) {
+            whitelist.markTokenAsL2Wrapped(address(this), _localToken);
+        }
+
         emit ERC20TransactionDeposited(_localToken, _from, _to, _amount, _extraData);
     }
 
