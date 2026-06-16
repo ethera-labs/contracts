@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { IResourceMetering } from "interfaces/L1/IResourceMetering.sol";
-import { ISystemConfig } from "interfaces/L1/ISystemConfig.sol";
-import { ISuperchainConfig } from "interfaces/L1/ISuperchainConfig.sol";
-import { Features } from "src/libraries/Features.sol";
+import {IResourceMetering} from "interfaces/L1/IResourceMetering.sol";
+import {ISystemConfig} from "interfaces/L1/ISystemConfig.sol";
+import {ISuperchainConfig} from "interfaces/L1/ISuperchainConfig.sol";
+import {Features} from "src/libraries/Features.sol";
 
 /// @notice Minimal SystemConfig mock for ComposePortal integration tests. Returns safe defaults
 ///         for every method the portal touches during init + deposit/finalize paths.

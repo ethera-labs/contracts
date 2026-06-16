@@ -9,9 +9,7 @@ import {ProxyAdmin} from "@optimism/src/universal/ProxyAdmin.sol";
 import {DisputeGameFactory} from "@optimism/src/dispute/DisputeGameFactory.sol";
 
 contract DeployDisputeGameFactory is Script {
-    function run(
-        address admin
-    ) public returns (address dgfProxyAddr, address dgfImplAddr) {
+    function run(address admin) public returns (address dgfProxyAddr, address dgfImplAddr) {
         vm.startBroadcast();
 
         // 1) Deploy ProxyAdmin controlled by `admin`.
@@ -22,16 +20,9 @@ contract DeployDisputeGameFactory is Script {
         //    ProxyAdminOwnedBase checks in initialize()).
         DisputeGameFactory dgfImpl = new DisputeGameFactory();
         Proxy dgfProxy = new Proxy(address(proxyAdmin));
-        bytes memory dgfInitData = abi.encodeWithSelector(
-            DisputeGameFactory.initialize.selector,
-            admin
-        );
+        bytes memory dgfInitData = abi.encodeWithSelector(DisputeGameFactory.initialize.selector, admin);
 
-        proxyAdmin.upgradeAndCall(
-            payable(address(dgfProxy)),
-            address(dgfImpl),
-            dgfInitData
-        );
+        proxyAdmin.upgradeAndCall(payable(address(dgfProxy)), address(dgfImpl), dgfInitData);
         DisputeGameFactory dgf = DisputeGameFactory(address(dgfProxy));
         console.log("DisputeGameFactory (proxy):", address(dgf));
 

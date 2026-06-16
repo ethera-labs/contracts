@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { Script } from "forge-std/Script.sol";
-import { console2 as console } from "forge-std/console2.sol";
+import {Script} from "forge-std/Script.sol";
+import {console2 as console} from "forge-std/console2.sol";
 
-import { Proxy } from "src/universal/Proxy.sol";
-import { IProxyAdmin } from "interfaces/universal/IProxyAdmin.sol";
-import { ComposeAnchorStateRegistry } from "src/l1/ComposeAnchorStateRegistry.sol";
-import { ComposeDisputeGame } from "src/l1/ComposeDisputeGame.sol";
-import { IComposeAnchorStateRegistry } from "src/l1/interfaces/IComposeAnchorStateRegistry.sol";
+import {Proxy} from "src/universal/Proxy.sol";
+import {IProxyAdmin} from "interfaces/universal/IProxyAdmin.sol";
+import {ComposeAnchorStateRegistry} from "src/l1/ComposeAnchorStateRegistry.sol";
+import {ComposeDisputeGame} from "src/l1/ComposeDisputeGame.sol";
+import {IComposeAnchorStateRegistry} from "src/l1/interfaces/IComposeAnchorStateRegistry.sol";
 
-import { ISuperchainConfig } from "interfaces/L1/ISuperchainConfig.sol";
-import { IDisputeGameFactory } from "interfaces/dispute/IDisputeGameFactory.sol";
-import { GameType, Proposal, Hash } from "@optimism/src/dispute/lib/Types.sol";
+import {ISuperchainConfig} from "interfaces/L1/ISuperchainConfig.sol";
+import {IDisputeGameFactory} from "interfaces/dispute/IDisputeGameFactory.sol";
+import {GameType, Proposal, Hash} from "@optimism/src/dispute/lib/Types.sol";
 
 /// @title DeployASRAndRegisterGame
 /// @notice Retrofits an existing Compose deployment that was built on L2OutputOracle to the
@@ -34,24 +34,17 @@ import { GameType, Proposal, Hash } from "@optimism/src/dispute/lib/Types.sol";
 contract DeployASRAndRegisterGame is Script {
     uint32 public constant COMPOSE_GAME_TYPE = 5555;
 
-    function run()
-        external
-        returns (
-            address asrProxyAddr,
-            address asrImplAddr,
-            address newGameImplAddr
-        )
-    {
-        address proxyAdmin       = vm.envAddress("PROXY_ADMIN");
-        address proxyAdminOwner  = vm.envAddress("PROXY_ADMIN_OWNER");
-        address dgfOwner         = vm.envAddress("DGF_OWNER");
+    function run() external returns (address asrProxyAddr, address asrImplAddr, address newGameImplAddr) {
+        address proxyAdmin = vm.envAddress("PROXY_ADMIN");
+        address proxyAdminOwner = vm.envAddress("PROXY_ADMIN_OWNER");
+        address dgfOwner = vm.envAddress("DGF_OWNER");
         address superchainConfig = vm.envAddress("SUPERCHAIN_CONFIG");
-        address dgf              = vm.envAddress("DISPUTE_GAME_FACTORY");
-        address sp1Verifier      = vm.envAddress("SP1_VERIFIER");
-        bytes32 aggregationVkey  = vm.envBytes32("AGGREGATION_VKEY");
-        address proposer         = vm.envAddress("AUTHORIZED_PROPOSER");
-        uint256 initBond         = vm.envOr("DG_INIT_BOND", uint256(0));
-        uint256 dgFinalityDelay  = vm.envUint("DG_FINALITY_DELAY");
+        address dgf = vm.envAddress("DISPUTE_GAME_FACTORY");
+        address sp1Verifier = vm.envAddress("SP1_VERIFIER");
+        bytes32 aggregationVkey = vm.envBytes32("AGGREGATION_VKEY");
+        address proposer = vm.envAddress("AUTHORIZED_PROPOSER");
+        uint256 initBond = vm.envOr("DG_INIT_BOND", uint256(0));
+        uint256 dgFinalityDelay = vm.envUint("DG_FINALITY_DELAY");
 
         vm.rememberKey(vm.envUint("PK_ADMIN"));
         vm.rememberKey(vm.envUint("PK_DGF_OWNER"));
@@ -65,32 +58,20 @@ contract DeployASRAndRegisterGame is Script {
         asrProxyAddr = address(asrProxy);
         console.log("[1b] ASR proxy             :", asrProxyAddr);
 
-        Proposal memory placeholder = Proposal({
-            root: Hash.wrap(bytes32(uint256(1))),
-            l2SequenceNumber: 0
-        });
+        Proposal memory placeholder = Proposal({root: Hash.wrap(bytes32(uint256(1))), l2SequenceNumber: 0});
 
-        IProxyAdmin(proxyAdmin).upgradeAndCall(
-            payable(asrProxyAddr),
-            asrImplAddr,
-            abi.encodeCall(
-                IComposeAnchorStateRegistry.initialize,
-                (
-                    ISuperchainConfig(superchainConfig),
-                    IDisputeGameFactory(dgf),
-                    placeholder,
-                    GameType.wrap(COMPOSE_GAME_TYPE)
+        IProxyAdmin(proxyAdmin)
+            .upgradeAndCall(
+                payable(asrProxyAddr),
+                asrImplAddr,
+                abi.encodeCall(
+                    IComposeAnchorStateRegistry.initialize,
+                    (ISuperchainConfig(superchainConfig), IDisputeGameFactory(dgf), placeholder, GameType.wrap(COMPOSE_GAME_TYPE))
                 )
-            )
-        );
+            );
         console.log("[1c] ASR initialized (respectedGameType = 5555)");
 
-        ComposeDisputeGame gameImpl = new ComposeDisputeGame(
-            sp1Verifier,
-            aggregationVkey,
-            IComposeAnchorStateRegistry(asrProxyAddr),
-            proposer
-        );
+        ComposeDisputeGame gameImpl = new ComposeDisputeGame(sp1Verifier, aggregationVkey, IComposeAnchorStateRegistry(asrProxyAddr), proposer);
         newGameImplAddr = address(gameImpl);
         console.log("\n[2]  new ComposeDisputeGame impl :", newGameImplAddr);
 
@@ -98,17 +79,11 @@ contract DeployASRAndRegisterGame is Script {
 
         vm.startBroadcast(dgfOwner);
 
-        IDisputeGameFactory(dgf).setImplementation(
-            GameType.wrap(COMPOSE_GAME_TYPE),
-            gameImpl
-        );
+        IDisputeGameFactory(dgf).setImplementation(GameType.wrap(COMPOSE_GAME_TYPE), gameImpl);
         console.log("\n[3]  DGF.setImplementation(5555, new) : ok");
 
         if (initBond > 0) {
-            IDisputeGameFactory(dgf).setInitBond(
-                GameType.wrap(COMPOSE_GAME_TYPE),
-                initBond
-            );
+            IDisputeGameFactory(dgf).setInitBond(GameType.wrap(COMPOSE_GAME_TYPE), initBond);
             console.log("[3b] DGF.setInitBond                  :", initBond);
         }
 

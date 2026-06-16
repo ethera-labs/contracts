@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { Script } from "forge-std/Script.sol";
-import { console2 as console } from "forge-std/console2.sol";
-import { ComposeERC20Lockbox } from "src/l1/ComposeERC20Lockbox.sol";
+import {Script} from "forge-std/Script.sol";
+import {console2 as console} from "forge-std/console2.sol";
+import {ComposeERC20Lockbox} from "src/l1/ComposeERC20Lockbox.sol";
 
 contract DeployComposeERC20Lockbox is Script {
     function run() public returns (address) {

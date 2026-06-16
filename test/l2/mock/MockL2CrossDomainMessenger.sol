@@ -30,12 +30,7 @@ contract MockL2CrossDomainMessenger {
         xDomainMessageSender = _sender;
     }
 
-    function relayFromOtherBridge(
-        address _sender,
-        address _target,
-        uint256 _value,
-        bytes calldata _message
-    )
+    function relayFromOtherBridge(address _sender, address _target, uint256 _value, bytes calldata _message)
         external
         payable
         returns (bool ok, bytes memory ret)

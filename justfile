@@ -50,6 +50,12 @@ l1-upgrade-bridge-impl rollup:
 l1-wire-bridges rollup:
     ROLLUP_NAME={{rollup}} forge script script/l1/deploy/WireComposeBridges.s.sol --tc WireComposeBridges --rpc-url $RPC_URL --broadcast --slow
 
+l1-whitelist-portal rollup allowed:
+    ROLLUP_NAME={{rollup}} forge script script/l1/deploy/SetL1DepositWhitelist.s.sol --tc SetL1DepositWhitelist --sig "setPortalAllowed(bool)" {{allowed}} --rpc-url $RPC_URL --broadcast --slow
+
+l1-whitelist-erc20 rollup token allowed:
+    ROLLUP_NAME={{rollup}} forge script script/l1/deploy/SetL1DepositWhitelist.s.sol --tc SetL1DepositWhitelist --sig "setERC20Allowed(address,bool)" {{token}} {{allowed}} --rpc-url $RPC_URL --broadcast --slow
+
 # ============================================================
 # L2 bridge  (reads config.json via ROLLUP_NAME)
 # ============================================================

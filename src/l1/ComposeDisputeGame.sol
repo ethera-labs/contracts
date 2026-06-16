@@ -6,7 +6,7 @@ import {ISemver} from "@optimism/interfaces/universal/ISemver.sol";
 import {GameNotInProgress, GameNotFinalized, GamePaused} from "@optimism/src/dispute/lib/Errors.sol";
 import {Hashing} from "@optimism/src/libraries/Hashing.sol";
 import {Types} from "@optimism/src/libraries/Types.sol";
-import { Timestamp, GameStatus, GameType, Claim, Hash } from "@optimism/src/dispute/lib/Types.sol";
+import {Timestamp, GameStatus, GameType, Claim, Hash} from "@optimism/src/dispute/lib/Types.sol";
 import {ISP1Verifier} from "@sp1-contracts/src/ISP1Verifier.sol";
 import {IComposeDisputeGame, IDisputeGame} from "./interfaces/ICompose.sol";
 import {IComposeAnchorStateRegistry} from "./interfaces/IComposeAnchorStateRegistry.sol";
@@ -41,12 +41,7 @@ contract ComposeDisputeGame is ISemver, Clone, IComposeDisputeGame {
     /// @custom:semver 1.0.0
     string public constant version = "v1.0.0";
 
-    constructor(
-        address _proofVerifier,
-        bytes32 _aggregationVkey,
-        IComposeAnchorStateRegistry _asr,
-        address _authorizedProposer
-    ) {
+    constructor(address _proofVerifier, bytes32 _aggregationVkey, IComposeAnchorStateRegistry _asr, address _authorizedProposer) {
         if (_proofVerifier == address(0)) revert InvalidVerifier();
         if (address(_asr) == address(0)) revert InvalidASR();
         PROOF_VERIFIER = ISP1Verifier(_proofVerifier);
@@ -62,71 +57,44 @@ contract ComposeDisputeGame is ISemver, Clone, IComposeDisputeGame {
 
         createdAt = Timestamp.wrap(uint64(block.timestamp));
         status = GameStatus.IN_PROGRESS;
-        wasRespectedGameTypeWhenCreated = (GameType.unwrap(
-            ANCHOR_STATE_REGISTRY.respectedGameType()
-        ) == GameType.unwrap(gameType()));
+        wasRespectedGameTypeWhenCreated = (GameType.unwrap(ANCHOR_STATE_REGISTRY.respectedGameType()) == GameType.unwrap(gameType()));
 
-        (
-            SuperblockAggregationOutputs memory aggOutputs,
-            Types.SuperRootProof memory superRootProof,
-            bytes memory proof
-        ) = decodeExtraData();
+        (SuperblockAggregationOutputs memory aggOutputs, Types.SuperRootProof memory superRootProof, bytes memory proof) = decodeExtraData();
 
         if (proof.length == 0) revert MissingAggregationProof();
-        if (superRootProof.timestamp > uint64(block.timestamp))
-            revert FutureTimestampProposed(
-                superRootProof.timestamp,
-                uint64(block.timestamp)
-            );
+        if (superRootProof.timestamp > uint64(block.timestamp)) {
+            revert FutureTimestampProposed(superRootProof.timestamp, uint64(block.timestamp));
+        }
 
         bytes32 claimedRoot = rootClaim().raw();
         bytes32 expectedRoot = Hashing.hashSuperRootProof(superRootProof);
-        if (claimedRoot != expectedRoot)
+        if (claimedRoot != expectedRoot) {
             revert InvalidRootClaim(expectedRoot, claimedRoot);
+        }
 
         if (aggOutputs.superblockNumber <= lastSuperblockNumber) {
-            revert InvalidSuperblockOrdering(
-                lastSuperblockNumber,
-                aggOutputs.superblockNumber
-            );
+            revert InvalidSuperblockOrdering(lastSuperblockNumber, aggOutputs.superblockNumber);
         }
 
         if (superRootProof.outputRoots.length != aggOutputs.bootInfo.length) {
-            revert OutputLengthMismatch(
-                aggOutputs.bootInfo.length,
-                superRootProof.outputRoots.length
-            );
+            revert OutputLengthMismatch(aggOutputs.bootInfo.length, superRootProof.outputRoots.length);
         }
 
-        PROOF_VERIFIER.verifyProof(
-            AGGREGATION_VKEY,
-            bytes32ToBytes(sha256(abi.encode(aggOutputs))),
-            proof
-        );
+        PROOF_VERIFIER.verifyProof(AGGREGATION_VKEY, bytes32ToBytes(sha256(abi.encode(aggOutputs))), proof);
 
         lastSuperblockNumber = aggOutputs.superblockNumber;
 
         uint256 rootsLen = superRootProof.outputRoots.length;
         for (uint256 i; i < rootsLen; i++) {
-            Types.OutputRootWithChainId
-                memory outputRootWithChainId = superRootProof.outputRoots[i];
-            BootInfoStruct memory bootInfo = aggOutputs.bootInfo[
-                i
-            ];
+            Types.OutputRootWithChainId memory outputRootWithChainId = superRootProof.outputRoots[i];
+            BootInfoStruct memory bootInfo = aggOutputs.bootInfo[i];
 
             if (outputRootWithChainId.root != bootInfo.l2PostRoot) {
-                revert OutputRootMismatch(
-                    outputRootWithChainId.chainId,
-                    bootInfo.l2PostRoot,
-                    outputRootWithChainId.root
-                );
+                revert OutputRootMismatch(outputRootWithChainId.chainId, bootInfo.l2PostRoot, outputRootWithChainId.root);
             }
 
-            latestOutputsByConfig[bootInfo.rollupConfigHash] = RollupOutput({
-                l1Head: bootInfo.l1Head,
-                outputRoot: outputRootWithChainId.root,
-                l2BlockNumber: bootInfo.l2BlockNumber
-            });
+            latestOutputsByConfig[bootInfo.rollupConfigHash] =
+                RollupOutput({l1Head: bootInfo.l1Head, outputRoot: outputRootWithChainId.root, l2BlockNumber: bootInfo.l2BlockNumber});
 
             emit L2OutputProposed(
                 aggOutputs.superblockNumber,
@@ -139,13 +107,7 @@ contract ComposeDisputeGame is ISemver, Clone, IComposeDisputeGame {
             );
         }
 
-        emit SuperblockProposed(
-            aggOutputs.superblockNumber,
-            aggOutputs.parentSuperblockBatchHash,
-            superRootProof.timestamp,
-            block.number,
-            expectedRoot
-        );
+        emit SuperblockProposed(aggOutputs.superblockNumber, aggOutputs.parentSuperblockBatchHash, superRootProof.timestamp, block.number, expectedRoot);
 
         this.resolve();
     }
@@ -170,17 +132,13 @@ contract ComposeDisputeGame is ISemver, Clone, IComposeDisputeGame {
         }
 
         // Game must be finalized according to the AnchorStateRegistry.
-        bool finalized = ANCHOR_STATE_REGISTRY.isGameFinalized(
-            IDisputeGame(address(this))
-        );
+        bool finalized = ANCHOR_STATE_REGISTRY.isGameFinalized(IDisputeGame(address(this)));
         if (!finalized) {
             revert GameNotFinalized();
         }
 
         // Best-effort; ignore failures (e.g., finality delay not yet elapsed).
-        try
-            ANCHOR_STATE_REGISTRY.setAnchorState(IDisputeGame(address(this)))
-        {} catch {}
+        try ANCHOR_STATE_REGISTRY.setAnchorState(IDisputeGame(address(this))) {} catch {}
 
         emit GameClosed();
     }
@@ -221,10 +179,7 @@ contract ComposeDisputeGame is ISemver, Clone, IComposeDisputeGame {
             // calldataload(sub(calldatasize(), 2)) loads the last 2 bytes of the calldata, which gives the length of the immutable args.
             // shr(240, calldataload(sub(calldatasize(), 2))) masks the last 30 bytes loaded in the previous step, so only the length of the immutable args is left.
             // sub(sub(...)) subtracts the length of the immutable args (2 bytes) and the starting point of the extra data (0x54).
-            len := sub(
-                sub(shr(240, calldataload(sub(calldatasize(), 2))), 2),
-                0x54
-            )
+            len := sub(sub(shr(240, calldataload(sub(calldatasize(), 2))), 2), 0x54)
         }
         extraData_ = _getArgBytes(0x54, len);
     }
@@ -233,36 +188,20 @@ contract ComposeDisputeGame is ISemver, Clone, IComposeDisputeGame {
         return 0;
     }
 
-    function gameData()
-        external
-        pure
-        returns (GameType gameType_, Claim rootClaim_, bytes memory extraData_)
-    {
+    function gameData() external pure returns (GameType gameType_, Claim rootClaim_, bytes memory extraData_) {
         gameType_ = gameType();
         rootClaim_ = rootClaim();
         extraData_ = extraData();
     }
 
     /// @notice ASR uses this to enforce that new anchors are strictly newer than the current anchor.
-    function l2SequenceNumber()
-        external
-        pure
-        returns (uint256 l2SequenceNumber_)
-    {
-        (
-            SuperblockAggregationOutputs memory aggOutputs,
-            ,
-
-        ) = decodeExtraData();
+    function l2SequenceNumber() external pure returns (uint256 l2SequenceNumber_) {
+        (SuperblockAggregationOutputs memory aggOutputs,,) = decodeExtraData();
         l2SequenceNumber_ = aggOutputs.superblockNumber;
     }
 
     /// @notice Returns the AnchorStateRegistry address this game is registered with.
-    function anchorStateRegistry()
-        external
-        view
-        returns (IComposeAnchorStateRegistry registry_)
-    {
+    function anchorStateRegistry() external view returns (IComposeAnchorStateRegistry registry_) {
         registry_ = ANCHOR_STATE_REGISTRY;
     }
 
@@ -277,20 +216,8 @@ contract ComposeDisputeGame is ISemver, Clone, IComposeDisputeGame {
     function decodeExtraData()
         private
         pure
-        returns (
-            SuperblockAggregationOutputs memory aggOutputs,
-            Types.SuperRootProof memory superRootProof,
-            bytes memory proof
-        )
+        returns (SuperblockAggregationOutputs memory aggOutputs, Types.SuperRootProof memory superRootProof, bytes memory proof)
     {
-        return
-            abi.decode(
-                extraData(),
-                (
-                    SuperblockAggregationOutputs,
-                    Types.SuperRootProof,
-                    bytes
-                )
-            );
+        return abi.decode(extraData(), (SuperblockAggregationOutputs, Types.SuperRootProof, bytes));
     }
 }

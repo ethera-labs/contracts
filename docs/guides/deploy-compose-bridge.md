@@ -11,7 +11,7 @@ This guide covers deploying the full Compose bridge stack: Phase 1 deploys share
 Phase 1 — L1 shared infra (once per cluster)
   just l1-deploy-shared
   → ProxyAdmin, SuperchainConfig, DisputeGameFactory,
-    ComposeAnchorStateRegistry, ComposeETHLockbox, ComposeDisputeGame
+    ComposeAnchorStateRegistry, ComposeETHLockbox, L1DepositWhitelist, ComposeDisputeGame
   → addresses written back to config.json under l1.deployed
 
 Phase 2 — L2 bridge per rollup
@@ -23,7 +23,9 @@ Phase 2 — L2 bridge per rollup
 Phase 3 — Enable ERC-20 bridging (per rollup, after l1-migrate-v4)
   just l1-upgrade-compose-bridge <rollup>
   → ComposePortal, ComposeL1Bridge, ComposeERC20Lockbox (shared)
+  → deposit whitelist wired, legacy L1StandardBridge deposits disabled
   → wire bridges via just l1-wire-bridges / just l2-wire-bridge
+  → allow portal and token deposits explicitly via just l1-whitelist-*
 ```
 
 ---
@@ -54,6 +56,8 @@ Deploy once per Compose cluster. All rollups that join the cluster will share th
   "l1": {
     "guardian": "0x...",
     "proxyAdminOwner": "0x...",
+    "defaultAdmin": "0x...",
+    "depositWhitelistAdmin": "0x...",
     "authorizedProposer": "0x...",
     "sp1Verifier": "0x...",
     "aggregationVkey": "0x...",
@@ -69,6 +73,8 @@ Deploy once per Compose cluster. All rollups that join the cluster will share th
 |---|---|
 | `guardian` | Address that can pause the SuperchainConfig |
 | `proxyAdminOwner` | Owner of the shared ProxyAdmin (multisig recommended for production) |
+| `defaultAdmin` | Address that receives `DEFAULT_ADMIN_ROLE` on `L1DepositWhitelist` and only grants/revokes roles |
+| `depositWhitelistAdmin` | Address that receives `DEPOSIT_WHITELIST_ROLE` and can allow/block portal and ERC-20 deposits |
 | `authorizedProposer` | Address authorized to propose dispute games |
 | `sp1Verifier` | SP1 verifier contract address on L1 |
 | `aggregationVkey` | SP1 aggregation verification key (bytes32) |
@@ -81,6 +87,7 @@ Deploy once per Compose cluster. All rollups that join the cluster will share th
 ```
 PROXY_ADMIN_OWNER_KEY=0x<proxy-admin-owner-private-key>
 GUARDIAN_KEY=0x<guardian-private-key>
+DEPOSIT_WHITELIST_ADMIN_KEY=0x<deposit-whitelist-admin-private-key>
 RPC_URL=https://<l1-rpc>
 ```
 
@@ -103,6 +110,7 @@ successful run, `config.json` will have:
       "disputeGameFactory": "0x...",
       "anchorStateRegistry": "0x...",
       "ethLockbox": "0x...",
+      "depositWhitelist": "0x...",
       "composeDisputeGame": "0x...",
       "erc20LockboxProxy": "0x0000000000000000000000000000000000000000"
     }
@@ -110,7 +118,7 @@ successful run, `config.json` will have:
 }
 ```
 
-`erc20LockboxProxy` starts as zero and is filled in automatically during Phase 3.
+`depositWhitelist` is deployed during Phase 1. `erc20LockboxProxy` starts as zero and is filled in automatically during Phase 3.
 
 ### What gets deployed
 
@@ -121,6 +129,7 @@ successful run, `config.json` will have:
 | `DisputeGameFactory` | proxy | Registers and creates dispute games |
 | `ComposeAnchorStateRegistry` | proxy | Shared anchor state for all rollups |
 | `ComposeETHLockbox` | proxy | Unified ETH liquidity pool |
+| `L1DepositWhitelist` | proxy | Shared default-deny deposit policy for portals and ERC-20 tokens |
 | `ComposeDisputeGame` | implementation | SP1-based dispute game (game type 5555) |
 
 ---
@@ -213,7 +222,8 @@ value is set to a different address.
 
 ## Phase 3 — Enable ERC-20 bridging (per rollup)
 
-Deploys `ComposeL1Bridge` on L1, upgrades the portal to `ComposePortal`, and wires both sides.
+Deploys `ComposeL1Bridge` on L1, upgrades the portal to `ComposePortal`, wires the shared
+deposit whitelist, and disables legacy `L1StandardBridge` deposit entry points.
 Requires Phase 1 (shared infra) and the rollup migration (`just l1-migrate-v4`) to be complete.
 
 All configuration is read from `config.json` via `ROLLUP_NAME` — no separate config file needed.
@@ -259,6 +269,19 @@ deploys `ComposeERC20Lockbox` and saves its address to `config.json` under
 `l1.deployed.erc20LockboxProxy`. Subsequent rollups read that address and reuse the same lockbox
 automatically — no manual copy step required.
 
+After the upgrade, all new L1 deposits are blocked by default. Existing historical deposits are not
+changed. To allow new deposits, the wallet with `DEPOSIT_WHITELIST_ROLE` must explicitly allow the
+portal path and each ERC-20 token:
+
+```sh
+just l1-whitelist-portal chain-100003 true
+just l1-whitelist-erc20 chain-100003 0x<Token> true
+```
+
+The portal flag is the global L1-to-L2 message gate. ERC-20 deposits require both the portal flag
+and the per-token flag to be enabled. Legacy `L1StandardBridge` deposit functions remain disabled
+after the upgrade even if the portal is later allowed.
+
 ### 4. Wire L1 and L2 bridges
 
 ```sh
@@ -285,6 +308,10 @@ just l2-deploy-bridge chain-200005
 just l1-upgrade-compose-bridge chain-100003   # deploys ComposeERC20Lockbox, saves to config.json
 just l1-upgrade-compose-bridge chain-200005   # reuses lockbox from config.json automatically
 
+# Allow deposits explicitly after the default-deny upgrade
+just l1-whitelist-portal chain-100003 true
+just l1-whitelist-erc20 chain-100003 0x<Token> true
+
 # Wire bridges
 just l1-wire-bridges chain-100003
 just l1-wire-bridges chain-200005
@@ -308,6 +335,10 @@ cast call <SUPERCHAIN_CONFIG> "guardian()(address)" --rpc-url $RPC_URL
 
 # Confirm ComposeDisputeGame registered at game type 5555
 cast call <DISPUTE_GAME_FACTORY> "gameImpls(uint32)(address)" 5555 --rpc-url $RPC_URL
+
+# Confirm shared deposit whitelist
+cast call <DEPOSIT_WHITELIST> "version()(string)" --rpc-url $RPC_URL
+cast call <DEPOSIT_WHITELIST> "portalDepositAllowed(address)(bool)" <PORTAL_PROXY> --rpc-url $RPC_URL
 ```
 
 ### L2 bridge
@@ -321,6 +352,21 @@ cast call <CET_FACTORY> "authorizedBridges(address)(bool)" <L2_COMPOSE_BRIDGE> -
 cast call <CET_FACTORY> "authorizedBridges(address)(bool)" <L2L2_BRIDGE> --rpc-url $L2_RPC_URL
 ```
 
+### L1 deposit enforcement
+
+```sh
+# Portal is wired to the shared whitelist
+cast call <PORTAL_PROXY> "depositWhitelist()(address)" --rpc-url $RPC_URL
+
+# ERC-20 token policy for this portal
+cast call <PORTAL_PROXY> "erc20DepositAllowed(address)(bool)" <TOKEN> --rpc-url $RPC_URL
+
+# Legacy bridge deposit implementation is blocked
+cast call <L1_STANDARD_BRIDGE> "version()(string)" --rpc-url $RPC_URL
+```
+
+Expected legacy bridge version after migration/upgrade: `2.7.0-compose-blocked`.
+
 ---
 
 ## Troubleshooting
@@ -329,6 +375,10 @@ cast call <CET_FACTORY> "authorizedBridges(address)(bool)" <L2L2_BRIDGE> --rpc-u
 |---|---|---|
 | `Guardian not set` | `guardian` missing in `config.json` `l1.*` | Add `guardian` address |
 | `Aggregation vkey not set` | `aggregationVkey` missing or zero | Add correct SP1 vkey |
+| `Default admin not set` | `defaultAdmin` is zero | Set `defaultAdmin` in `config.json` before `l1-deploy-shared` |
+| `Deposit whitelist admin not set` | `depositWhitelistAdmin` is zero | Set `depositWhitelistAdmin` in `config.json` before `l1-deploy-shared` |
+| `ComposeBridge_PortalDepositsDisabled` | Portal path is still default-denied | Run `just l1-whitelist-portal <rollup> true` from the whitelist admin wallet |
+| `ComposeBridge_ERC20DepositsDisabled` | Token is not allowed for this portal | Run `just l1-whitelist-erc20 <rollup> <token> true` |
 | `L2Bridge.otherBridge mismatch` | `otherBridge` already set to a different address | Check which L1 bridge was used at deploy time |
 | CREATE2 address collision | `create2Salt` differs from other rollups in cluster | Use the same `create2Salt` across all rollups |
 | Wrong chain on L2 deploy | `RPC_URL` still pointing at L1 | Update `RPC_URL` in `.env` to the L2 RPC before running `l2-deploy-bridge` |

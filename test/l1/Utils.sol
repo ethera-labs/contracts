@@ -12,11 +12,7 @@ contract Utils is Test {
         ProxyAdmin proxyAdmin = new ProxyAdmin(address(this));
         DisputeGameFactory factoryImpl = new DisputeGameFactory();
         Proxy factoryProxy = new Proxy(address(proxyAdmin));
-        proxyAdmin.upgradeAndCall(
-            payable(address(factoryProxy)),
-            address(factoryImpl),
-            abi.encodeCall(DisputeGameFactory.initialize, (address(this)))
-        );
+        proxyAdmin.upgradeAndCall(payable(address(factoryProxy)), address(factoryImpl), abi.encodeCall(DisputeGameFactory.initialize, (address(this))));
         return DisputeGameFactory(address(factoryProxy));
     }
 }

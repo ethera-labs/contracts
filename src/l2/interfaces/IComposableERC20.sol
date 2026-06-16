@@ -5,7 +5,10 @@ interface IComposableERC20 {
     /// @notice Type of the ComposableERC20 deployment.
     ///         CORE = canonical native token on its home chain.
     ///         WRAPPED = bridge-deployed wrapper representing a remote asset.
-    enum CetType { CORE, WRAPPED }
+    enum CetType {
+        CORE,
+        WRAPPED
+    }
 
     /// @notice Storage struct for the BridgedComposeTokenERC20 metadata.
     struct BridgedComposeTokenERC20Metadata {

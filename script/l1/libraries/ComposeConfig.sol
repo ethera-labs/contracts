@@ -28,6 +28,18 @@ library ComposeConfig {
         return addr;
     }
 
+    function defaultAdmin() internal view returns (address) {
+        address addr = vm.parseJsonAddress(jsonContent(), ".l1.defaultAdmin");
+        require(addr != address(0), "ComposeConfig: defaultAdmin not set in config.json");
+        return addr;
+    }
+
+    function depositWhitelistAdmin() internal view returns (address) {
+        address addr = vm.parseJsonAddress(jsonContent(), ".l1.depositWhitelistAdmin");
+        require(addr != address(0), "ComposeConfig: depositWhitelistAdmin not set in config.json");
+        return addr;
+    }
+
     function authorizedProposer() internal view returns (address) {
         address addr = vm.parseJsonAddress(jsonContent(), ".l1.authorizedProposer");
         require(addr != address(0), "ComposeConfig: authorizedProposer not set in config.json");
@@ -117,6 +129,12 @@ library ComposeConfig {
         }
     }
 
+    function depositWhitelist() internal view returns (address) {
+        address addr = vm.parseJsonAddress(jsonContent(), ".l1.deployed.depositWhitelist");
+        require(addr != address(0), "ComposeConfig: depositWhitelist not set, run l1-deploy-shared first");
+        return addr;
+    }
+
     function l1ChainId() internal view returns (uint256) {
         return vm.parseJsonUint(jsonContent(), ".l1.deployed.l1ChainId");
     }
@@ -126,6 +144,8 @@ library ComposeConfig {
     function validateConfig() internal view {
         guardian();
         proxyAdminOwner();
+        defaultAdmin();
+        depositWhitelistAdmin();
         authorizedProposer();
         sp1Verifier();
         aggregationVkey();

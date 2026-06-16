@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.18;
 
-import { ComposableERC20 } from "./ComposableERC20.sol";
-import { ICETFactory } from "src/l2/interfaces/ICETFactory.sol";
+import {ComposableERC20} from "./ComposableERC20.sol";
+import {ICETFactory} from "src/l2/interfaces/ICETFactory.sol";
 
 /// @title CetFactory
 /// @notice CREATE2 deployer for `ComposableERC20` wrapper tokens. The deployed address depends
@@ -51,18 +51,14 @@ contract CetFactory is ICETFactory {
         bytes memory ctorArgs = abi.encode(remoteAsset, remoteChainID, address(this));
         bytes32 creationHash = keccak256(abi.encodePacked(type(ComposableERC20).creationCode, ctorArgs));
 
-        return address(
-            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, creationHash))))
-        );
+        return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, creationHash)))));
     }
 
-    function deployIfAbsent(
-        address remoteAsset,
-        uint256 remoteChainID,
-        uint8 decimals_,
-        string calldata name_,
-        string calldata symbol_
-    ) external onlyBridge returns (address deployed) {
+    function deployIfAbsent(address remoteAsset, uint256 remoteChainID, uint8 decimals_, string calldata name_, string calldata symbol_)
+        external
+        onlyBridge
+        returns (address deployed)
+    {
         address predicted = predictAddress(remoteAsset, remoteChainID);
 
         if (predicted.code.length > 0) {
@@ -70,7 +66,7 @@ contract CetFactory is ICETFactory {
         }
 
         bytes32 salt = computeSalt(remoteAsset, remoteChainID);
-        deployed = address(new ComposableERC20{ salt: salt }(remoteAsset, remoteChainID, address(this)));
+        deployed = address(new ComposableERC20{salt: salt}(remoteAsset, remoteChainID, address(this)));
         require(deployed == predicted, "CetFactory: address mismatch");
 
         ComposableERC20(deployed).initializeMetadata(name_, symbol_, decimals_);

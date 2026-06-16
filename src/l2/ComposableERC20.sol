@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.18;
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { IERC7802 } from "src/l2/interfaces/IERC7802.sol";
-import { IComposableERC20 } from "src/l2/interfaces/IComposableERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC7802} from "src/l2/interfaces/IERC7802.sol";
+import {IComposableERC20} from "src/l2/interfaces/IComposableERC20.sol";
 
 /// @title ComposableERC20
 /// @notice ERC7802-compliant CET. Constructor takes only identity args (remoteAsset,
@@ -23,17 +23,11 @@ contract ComposableERC20 is ERC20, IERC7802, IComposableERC20 {
     uint8 private _decimals;
     bool private _metadataInitialized;
 
-    constructor(
-        address _remoteAsset,
-        uint256 _remoteChainID,
-        address _bridge
-    ) ERC20("", "") {
+    constructor(address _remoteAsset, uint256 _remoteChainID, address _bridge) ERC20("", "") {
         remoteAsset = _remoteAsset;
         remoteChainID = _remoteChainID;
         owner = msg.sender;
-        cetType = (_remoteAsset == address(this) && _remoteChainID == block.chainid)
-            ? CetType.CORE
-            : CetType.WRAPPED;
+        cetType = (_remoteAsset == address(this) && _remoteChainID == block.chainid) ? CetType.CORE : CetType.WRAPPED;
         authorizedBridges[_bridge] = true;
         emit BridgeAuthorized(_bridge);
     }

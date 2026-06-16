@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { Script } from "forge-std/Script.sol";
-import { console2 as console } from "forge-std/console2.sol";
+import {Script} from "forge-std/Script.sol";
+import {console2 as console} from "forge-std/console2.sol";
 
-import { Proxy } from "src/universal/Proxy.sol";
-import { IProxyAdmin } from "interfaces/universal/IProxyAdmin.sol";
-import { ComposeETHLockbox } from "src/l1/ComposeETHLockbox.sol";
-import { ISuperchainConfig } from "interfaces/L1/ISuperchainConfig.sol";
-import { IOptimismPortal2 as IOptimismPortal } from "interfaces/L1/IOptimismPortal2.sol";
+import {Proxy} from "src/universal/Proxy.sol";
+import {IProxyAdmin} from "interfaces/universal/IProxyAdmin.sol";
+import {ComposeETHLockbox} from "src/l1/ComposeETHLockbox.sol";
+import {ISuperchainConfig} from "interfaces/L1/ISuperchainConfig.sol";
+import {IOptimismPortal2 as IOptimismPortal} from "interfaces/L1/IOptimismPortal2.sol";
 
 /// @title DeployComposeETHLockbox
 /// @notice Deploy a standalone `ComposeETHLockbox` proxy, wired into an existing ProxyAdmin
@@ -20,8 +20,8 @@ import { IOptimismPortal2 as IOptimismPortal } from "interfaces/L1/IOptimismPort
 ///   SUPERCHAIN_CONFIG    existing SuperchainConfig proxy
 contract DeployComposeETHLockbox is Script {
     function run() external returns (address proxyAddr, address implAddr) {
-        address proxyAdmin       = vm.envAddress("PROXY_ADMIN");
-        address proxyAdminOwner  = vm.envAddress("PROXY_ADMIN_OWNER");
+        address proxyAdmin = vm.envAddress("PROXY_ADMIN");
+        address proxyAdminOwner = vm.envAddress("PROXY_ADMIN_OWNER");
         address superchainConfig = vm.envAddress("SUPERCHAIN_CONFIG");
 
         vm.startBroadcast(proxyAdminOwner);
@@ -35,14 +35,8 @@ contract DeployComposeETHLockbox is Script {
         console.log("[2] Proxy                  :", proxyAddr);
 
         IOptimismPortal[] memory emptyPortals = new IOptimismPortal[](0);
-        IProxyAdmin(proxyAdmin).upgradeAndCall(
-            payable(proxyAddr),
-            implAddr,
-            abi.encodeCall(
-                ComposeETHLockbox.initialize,
-                (ISuperchainConfig(superchainConfig), emptyPortals)
-            )
-        );
+        IProxyAdmin(proxyAdmin)
+            .upgradeAndCall(payable(proxyAddr), implAddr, abi.encodeCall(ComposeETHLockbox.initialize, (ISuperchainConfig(superchainConfig), emptyPortals)));
         console.log("[3] upgradeAndCall(initialize) : ok");
 
         vm.stopBroadcast();

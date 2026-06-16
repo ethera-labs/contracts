@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { ComposeCommonTest } from "test/l1/setup/ComposeCommonTest.sol";
-import { IOptimismPortal2 as IOptimismPortal } from "@optimism/interfaces/L1/IOptimismPortal2.sol";
-import { MockPortal } from "test/l1/mock/MockPortal.sol";
+import {ComposeCommonTest} from "test/l1/setup/ComposeCommonTest.sol";
+import {IOptimismPortal2 as IOptimismPortal} from "@optimism/interfaces/L1/IOptimismPortal2.sol";
+import {MockPortal} from "test/l1/mock/MockPortal.sol";
 
 /// @title ComposeETHLockboxTest
 /// @notice Tests for the ComposeETHLockbox contract
@@ -32,7 +32,7 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
     function test_authorizePortal_success() public {
         vm.prank(proxyAdminOwner);
         composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortal1))));
-        
+
         assertTrue(composeETHLockbox.authorizedPortals(IOptimismPortal(payable(address(mockPortal1)))));
     }
 
@@ -46,13 +46,13 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
         // First authorization
         vm.prank(proxyAdminOwner);
         composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortal1))));
-        
+
         assertTrue(composeETHLockbox.authorizedPortals(IOptimismPortal(payable(address(mockPortal1)))));
-        
+
         // Re-authorization is idempotent (no revert)
         vm.prank(proxyAdminOwner);
         composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortal1))));
-        
+
         assertTrue(composeETHLockbox.authorizedPortals(IOptimismPortal(payable(address(mockPortal1)))));
     }
 
@@ -62,45 +62,31 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
         composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortalDifferentConfig))));
         vm.stopPrank();
 
-        assertTrue(
-            composeETHLockbox.authorizedPortals(
-                IOptimismPortal(payable(address(mockPortalDifferentConfig)))
-            )
-        );
+        assertTrue(composeETHLockbox.authorizedPortals(IOptimismPortal(payable(address(mockPortalDifferentConfig)))));
     }
 
     function test_authorizePortal_withDifferentSuperchainConfig_success() public {
-        assertTrue(
-            address(mockPortalDifferentConfig.superchainConfig())
-            != address(composeETHLockbox.superchainConfig())
-        );
+        assertTrue(address(mockPortalDifferentConfig.superchainConfig()) != address(composeETHLockbox.superchainConfig()));
 
         vm.prank(proxyAdminOwner);
-        composeETHLockbox.authorizePortal(
-            IOptimismPortal(payable(address(mockPortalDifferentConfig)))
-        );
+        composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortalDifferentConfig))));
 
-        assertTrue(
-            composeETHLockbox.authorizedPortals(
-                IOptimismPortal(payable(address(mockPortalDifferentConfig)))
-            )
-        );
+        assertTrue(composeETHLockbox.authorizedPortals(IOptimismPortal(payable(address(mockPortalDifferentConfig)))));
     }
-
 
     // ============ Lock Tests ============
 
     function test_lockETH_success() public {
         uint256 lockAmount = 10 ether;
-        
+
         // Authorize portal
         vm.prank(proxyAdminOwner);
         composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortal1))));
-        
+
         // Portal locks ETH
         vm.prank(address(mockPortal1));
         composeETHLockbox.lockETH{value: lockAmount}();
-        
+
         assertEq(address(composeETHLockbox).balance, lockAmount);
     }
 
@@ -112,9 +98,7 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
 
     function test_differentConfigPortal_canLockETH() public {
         vm.prank(proxyAdminOwner);
-        composeETHLockbox.authorizePortal(
-            IOptimismPortal(payable(address(mockPortalDifferentConfig)))
-        );
+        composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortalDifferentConfig))));
 
         vm.prank(address(mockPortalDifferentConfig));
         composeETHLockbox.lockETH{value: 1 ether}();
@@ -147,7 +131,7 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
         // Authorize portal
         vm.prank(proxyAdminOwner);
         composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortal1))));
-        
+
         // Try to unlock more than available
         vm.prank(address(mockPortal1));
         vm.expectRevert(); // ETHLockbox_InsufficientBalance
@@ -158,14 +142,14 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
         // Lock some ETH first
         vm.prank(proxyAdminOwner);
         composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortal1))));
-        
+
         vm.prank(address(mockPortal1));
         composeETHLockbox.lockETH{value: 100 ether}();
-        
+
         // Pause
         vm.prank(guardian);
         composeSuperchainConfig.pause(address(0));
-        
+
         vm.prank(address(mockPortal1));
         vm.expectRevert(); // ETHLockbox_Paused
         composeETHLockbox.unlockETH(10 ether);
@@ -173,9 +157,7 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
 
     function test_rollupPause_doesNotBlockLockETH_forDifferentConfigPortal() public {
         vm.prank(proxyAdminOwner);
-        composeETHLockbox.authorizePortal(
-            IOptimismPortal(payable(address(mockPortalDifferentConfig)))
-        );
+        composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortalDifferentConfig))));
 
         vm.prank(guardian);
         rollupSuperchainConfig.pause(address(0));
@@ -195,17 +177,17 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
     function test_paused_returnsTrueWhenPaused() public {
         vm.prank(guardian);
         composeSuperchainConfig.pause(address(0));
-        
+
         assertTrue(composeETHLockbox.paused());
     }
 
     function test_paused_returnsFalseAfterUnpause() public {
         vm.prank(guardian);
         composeSuperchainConfig.pause(address(0));
-        
+
         vm.prank(guardian);
         composeSuperchainConfig.unpause(address(0));
-        
+
         assertFalse(composeETHLockbox.paused());
     }
 
@@ -216,16 +198,12 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
         vm.prank(guardian);
         rollupSuperchainConfig.pause(address(mockPortalDifferentConfig));
 
-        assertTrue(composeETHLockbox.authorizedPortals(
-            IOptimismPortal(payable(address(mockPortalDifferentConfig)))
-        ));
+        assertTrue(composeETHLockbox.authorizedPortals(IOptimismPortal(payable(address(mockPortalDifferentConfig)))));
     }
 
     function test_composePause_blocksUnlock_forDifferentConfigPortal() public {
         vm.prank(proxyAdminOwner);
-        composeETHLockbox.authorizePortal(
-            IOptimismPortal(payable(address(mockPortalDifferentConfig)))
-        );
+        composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortalDifferentConfig))));
 
         vm.prank(address(mockPortalDifferentConfig));
         composeETHLockbox.lockETH{value: 10 ether}();
@@ -244,17 +222,17 @@ contract ComposeETHLockboxTest is ComposeCommonTest {
         // Authorize both portals
         vm.prank(proxyAdminOwner);
         composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortal1))));
-        
+
         vm.prank(proxyAdminOwner);
         composeETHLockbox.authorizePortal(IOptimismPortal(payable(address(mockPortal2))));
-        
+
         // Both portals lock ETH
         vm.prank(address(mockPortal1));
         composeETHLockbox.lockETH{value: 30 ether}();
-        
+
         vm.prank(address(mockPortal2));
         composeETHLockbox.lockETH{value: 40 ether}();
-        
+
         assertEq(address(composeETHLockbox).balance, 70 ether);
     }
 }

@@ -10,11 +10,7 @@ contract MockVerifier is ISP1Verifier {
         shouldAcceptProof = _shouldAccept;
     }
 
-    function verifyProof(
-        bytes32 programVkey,
-        bytes calldata publicValues,
-        bytes calldata proof
-    ) external view override {
+    function verifyProof(bytes32 programVkey, bytes calldata publicValues, bytes calldata proof) external view override {
         if (!shouldAcceptProof) {
             revert("MockVerifier: Proof verification failed");
         }
