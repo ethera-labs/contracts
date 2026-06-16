@@ -95,4 +95,111 @@ contract L1DepositWhitelistTest is Test {
 
         vm.stopPrank();
     }
+
+    function test_getTokenDetails() public {
+        vm.prank(whitelistAdmin);
+        whitelist.setERC20DepositAllowed(portal, token, true);
+
+        L1DepositWhitelist.TokenData memory data = whitelist.getTokenDetails(portal, token);
+        assertTrue(data.isWhitelisted);
+        assertFalse(data.isL2Wrapped);
+    }
+
+    function test_getActiveTokens() public {
+        address token1 = makeAddr("token1");
+        address token2 = makeAddr("token2");
+
+        vm.startPrank(whitelistAdmin);
+        whitelist.setERC20DepositAllowed(portal, token1, true);
+        whitelist.setERC20DepositAllowed(portal, token2, true);
+        vm.stopPrank();
+
+        address[] memory active = whitelist.getActiveTokens(portal);
+        assertEq(active.length, 2);
+        assertTrue((active[0] == token1 && active[1] == token2) || (active[0] == token2 && active[1] == token1));
+    }
+
+    function test_getActiveTokensRemoved() public {
+        address token1 = makeAddr("token1");
+        address token2 = makeAddr("token2");
+
+        vm.startPrank(whitelistAdmin);
+        whitelist.setERC20DepositAllowed(portal, token1, true);
+        whitelist.setERC20DepositAllowed(portal, token2, true);
+        whitelist.setERC20DepositAllowed(portal, token1, false);
+        vm.stopPrank();
+
+        address[] memory active = whitelist.getActiveTokens(portal);
+        assertEq(active.length, 1);
+        assertEq(active[0], token2);
+    }
+
+    function test_markTokenAsL2WrappedByPortal() public {
+        vm.prank(whitelistAdmin);
+        whitelist.setERC20DepositAllowed(portal, token, true);
+
+        vm.prank(portal);
+        whitelist.markTokenAsL2Wrapped(portal, token);
+
+        L1DepositWhitelist.TokenData memory data = whitelist.getTokenDetails(portal, token);
+        assertTrue(data.isWhitelisted);
+        assertTrue(data.isL2Wrapped);
+    }
+
+    function test_markTokenAsL2WrappedByBridgeRole() public {
+        vm.prank(whitelistAdmin);
+        whitelist.setERC20DepositAllowed(portal, token, true);
+
+        bytes32 bridgeRole = whitelist.BRIDGE_ROLE();
+        assertTrue(whitelist.hasRole(whitelist.DEFAULT_ADMIN_ROLE(), defaultAdmin));
+
+        vm.prank(defaultAdmin);
+        whitelist.grantRole(bridgeRole, operator);
+        assertTrue(whitelist.hasRole(bridgeRole, operator));
+
+        vm.prank(operator);
+        whitelist.markTokenAsL2Wrapped(portal, token);
+
+        L1DepositWhitelist.TokenData memory data = whitelist.getTokenDetails(portal, token);
+        assertTrue(data.isL2Wrapped);
+    }
+
+    function test_markTokenAsL2WrappedUnauthorized() public {
+        vm.prank(whitelistAdmin);
+        whitelist.setERC20DepositAllowed(portal, token, true);
+
+        vm.prank(operator);
+        vm.expectRevert(IL1DepositWhitelist.L1DepositWhitelist_Unauthorized.selector);
+        whitelist.markTokenAsL2Wrapped(portal, token);
+    }
+
+    function test_markTokenAsL2WrappedIdempotent() public {
+        vm.prank(whitelistAdmin);
+        whitelist.setERC20DepositAllowed(portal, token, true);
+
+        vm.prank(portal);
+        whitelist.markTokenAsL2Wrapped(portal, token);
+
+        vm.prank(portal);
+        whitelist.markTokenAsL2Wrapped(portal, token);
+
+        L1DepositWhitelist.TokenData memory data = whitelist.getTokenDetails(portal, token);
+        assertTrue(data.isL2Wrapped);
+    }
+
+    function test_markTokenAsL2WrappedZeroAddress() public {
+        bytes32 bridgeRole = whitelist.BRIDGE_ROLE();
+        assertTrue(whitelist.hasRole(whitelist.DEFAULT_ADMIN_ROLE(), defaultAdmin));
+
+        vm.prank(defaultAdmin);
+        whitelist.grantRole(bridgeRole, operator);
+
+        vm.prank(operator);
+        vm.expectRevert(IL1DepositWhitelist.L1DepositWhitelist_ZeroAddress.selector);
+        whitelist.markTokenAsL2Wrapped(address(0), token);
+
+        vm.prank(operator);
+        vm.expectRevert(IL1DepositWhitelist.L1DepositWhitelist_ZeroAddress.selector);
+        whitelist.markTokenAsL2Wrapped(portal, address(0));
+    }
 }
