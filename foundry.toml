@@ -1,0 +1,35 @@
+[profile.default]
+auto_detect_solc = true
+optimizer        = true
+optimizer_runs   = 200
+via_ir           = true
+src              = "src"
+test             = "test"
+out              = "out"
+libs             = ["lib"]
+
+fs_permissions = [
+    { access = "read-write", path = "./config.json" },
+    { access = "read", path = "./out" },
+    { access = "read-write", path = "./artifacts/" }
+]
+
+[profile.l2]
+optimizer_runs = 10_000
+gas_reports    = ["*"]
+
+[fmt]
+bracket_spacing = false
+int_types       = "long"
+line_length     = 160
+multiline_func_header = "attributes_first"
+number_underscore = "thousands"
+quote_style     = "double"
+tab_width       = 4
+
+[fuzz]
+runs = 1000
+
+[lint]
+ignore        = ["lib/**"]
+lint_on_build = false
